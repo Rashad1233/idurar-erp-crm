@@ -1,52 +1,50 @@
 const express = require('express');
-
 const cors = require('cors');
-const compression = require('compression');
+const path = require('path');
+const morgan = require('morgan');
+const helmet = require('helmet');
+const { sequelize } = require('../models/sequelize');
+const { extendModels } = require('./model-compatibility-layer');
+const comprehensiveCompatibility = require('./middleware/comprehensiveCompatibility');
 
-const cookieParser = require('cookie-parser');
+// Extend models with compatibility layer
+extendModels(sequelize.models);
 
-const coreAuthRouter = require('./routes/coreRoutes/coreAuth');
-const coreApiRouter = require('./routes/coreRoutes/coreApi');
-const coreDownloadRouter = require('./routes/coreRoutes/coreDownloadRouter');
-const corePublicRouter = require('./routes/coreRoutes/corePublicRouter');
-const adminAuth = require('./controllers/coreControllers/adminAuth');
-
-const errorHandlers = require('./handlers/errorHandlers');
-const erpApiRouter = require('./routes/appRoutes/appApi');
-
-const fileUpload = require('express-fileupload');
-// create our Express app
+// Create Express app
 const app = express();
 
-app.use(
-  cors({
-    origin: true,
-    credentials: true,
-  })
-);
-
-app.use(cookieParser());
+// Middleware
+app.use(cors());
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(morgan('dev'));
+// app.use(comprehensiveCompatibility); // Add comprehensive compatibility middleware - TEMPORARILY DISABLED
 
-app.use(compression());
+// Import routes
+const authRoutes = require('../routes/authRoutes');
+// Note: procurement routes (including purchase-requisition) are registered in index.js
+// using the /api/procurement prefix
 
-// // default options
-// app.use(fileUpload());
+// API routes
+app.use('/api/auth', authRoutes);
 
-// Here our API Routes
+// Serve static assets in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../../frontend/dist')));
+  
+  app.get('*', (req, res) => {
+    res.sendFile(path.resolve(__dirname, '../../frontend/dist/index.html'));
+  });
+}
 
-app.use('/api', coreAuthRouter);
-app.use('/api', adminAuth.isValidAuthToken, coreApiRouter);
-app.use('/api', adminAuth.isValidAuthToken, erpApiRouter);
-app.use('/download', coreDownloadRouter);
-app.use('/public', corePublicRouter);
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({
+    message: err.message,
+    stack: process.env.NODE_ENV === 'production' ? '🥞' : err.stack
+  });
+});
 
-// If that above routes didnt work, we 404 them and forward to error handler
-app.use(errorHandlers.notFound);
-
-// production error handler
-app.use(errorHandlers.productionErrors);
-
-// done! we export it so we can start the site in start.js
 module.exports = app;

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 import { request } from '@/request';
 import useOnFetch from '@/hooks/useOnFetch';
@@ -16,45 +16,127 @@ export default function AutoCompleteAsync({
   redirectLabel = 'Add New',
   withRedirect = false,
   urlToRedirect = '/',
-  value, /// this is for update
-  onChange, /// this is for update
+  value,
+  onChange
 }) {
   const translate = useLanguage();
-
-  const addNewValue = { value: 'redirectURL', label: `+ ${translate(redirectLabel)}` };
+  const navigate = useNavigate();
 
   const [selectOptions, setOptions] = useState([]);
   const [currentValue, setCurrentValue] = useState(undefined);
-
   const isUpdating = useRef(true);
   const isSearching = useRef(false);
+  const previousQuery = useRef('');
+
+  const [loading, setLoading] = useState(false);
+  
+  // Debounced search function
+  const debouncedSearch = useCallback((searchQuery) => {
+    if (!searchQuery || searchQuery === previousQuery.current) return;
+    
+    previousQuery.current = searchQuery;
+    setLoading(true);
+
+    request
+      .search({ entity, options: { searchQuery, searchFields } })
+      .then(result => {
+        if (result && Array.isArray(result)) {
+          setOptions(result);
+        }
+      })
+      .catch(() => setOptions([]))
+      .finally(() => {
+        setLoading(false);
+        isSearching.current = false;
+      });
+  }, [entity, searchFields]);
+
+  // Handle search input changes with throttling
+  const handleSearch = useCallback((value) => {
+    if (!value) {
+      setOptions([]);
+      return;
+    }
+
+    if (!isSearching.current) {
+      isSearching.current = true;
+      debouncedSearch(value);
+    }
+  }, [debouncedSearch]);
+
+  // Handle value changes from parent
+  useEffect(() => {
+    if (value !== undefined && value !== currentValue) {
+      setCurrentValue(value);
+    }
+  }, [value]);
+
+  const addNewValue = { value: 'redirectURL', label: `+ ${translate(redirectLabel)}` };
 
   const [searching, setSearching] = useState(false);
 
   const [valToSearch, setValToSearch] = useState('');
   const [debouncedValue, setDebouncedValue] = useState('');
+  
+  // Store original objects mapped by their string representations
+  const [objectMap] = useState(new Map());
 
-  const navigate = useNavigate();
+  // Helper function to safely get a value that can be rendered
+  const getSafeValue = (value) => {
+    if (value === null || value === undefined) return '';
+    
+    if (typeof value === 'object') {
+      // For objects, we need to store the original and return a string ID
+      const objId = value.id || value._id || JSON.stringify(value);
+      const stringKey = typeof objId === 'string' ? objId : String(objId);
+      
+      // Store the original object for later retrieval
+      objectMap.set(stringKey, value);
+      
+      return stringKey;
+    }
+    
+    return String(value);
+  };
+
+  // Helper to retrieve the original object from our map
+  const getOriginalObject = (stringValue) => {
+    if (objectMap.has(stringValue)) {
+      return objectMap.get(stringValue);
+    }
+    return stringValue;
+  };
 
   const handleSelectChange = (newValue) => {
     isUpdating.current = false;
-    // setCurrentValue(value[outputValue] || value); // set nested value or value
-    // onChange(newValue[outputValue] || newValue);
+    
     if (onChange) {
-      if (newValue) onChange(newValue[outputValue] || newValue);
+      if (newValue) {
+        if (newValue === 'redirectURL') {
+          // Handle redirect case
+          onChange(newValue);
+        } else {
+          // Try to get the original object if available
+          const originalValue = getOriginalObject(newValue);
+          onChange(originalValue);
+        }
+      } else {
+        onChange(undefined);
+      }
     }
+    
     if (newValue === 'redirectURL' && withRedirect) {
       navigate(urlToRedirect);
     }
   };
 
   const handleOnSelect = (value) => {
-    setCurrentValue(value[outputValue] || value); // set nested value or value
+    // Always store string values in the component state
+    setCurrentValue(value);
   };
 
   const [, cancel] = useDebounce(
     () => {
-      //  setState("Typing stopped");
       setDebouncedValue(valToSearch);
     },
     500,
@@ -68,7 +150,8 @@ export default function AutoCompleteAsync({
   let { onFetch, result, isSuccess, isLoading } = useOnFetch();
 
   const labels = (optionField) => {
-    return displayLabels.map((x) => optionField[x]).join(' ');
+    if (!optionField) return '';
+    return displayLabels.map((x) => optionField[x] || '').join(' ');
   };
 
   useEffect(() => {
@@ -87,26 +170,38 @@ export default function AutoCompleteAsync({
   const onSearch = (searchText) => {
     isSearching.current = true;
     setSearching(true);
-    // setOptions([]);
-    // setCurrentValue(undefined);
     setValToSearch(searchText);
   };
 
   useEffect(() => {
     if (isSuccess) {
+      // When results come in, store each object in our map
+      if (Array.isArray(result)) {
+        result.forEach(item => {
+          if (item && typeof item === 'object') {
+            const key = getSafeValue(item);
+            objectMap.set(key, item);
+          }
+        });
+      }
       setOptions(result);
     } else {
       setSearching(false);
-      // setCurrentValue(undefined);
-      // setOptions([]);
     }
   }, [isSuccess, result]);
+  
   useEffect(() => {
     // this for update Form , it's for setField
     if (value && isUpdating.current) {
       setOptions([value]);
-      setCurrentValue(value[outputValue] || value); // set nested value or value
-      onChange(value[outputValue] || value);
+      
+      // Store the object in our map and get a safe string value
+      const safeValue = getSafeValue(value);
+      setCurrentValue(safeValue);
+      
+      if (onChange) {
+        onChange(value);
+      }
       isUpdating.current = false;
     }
   }, [value]);
@@ -123,22 +218,31 @@ export default function AutoCompleteAsync({
       value={currentValue}
       onSearch={onSearch}
       onClear={() => {
-        // setOptions([]);
-        // setCurrentValue(undefined);
         setSearching(false);
+        setCurrentValue(undefined);
+        if (onChange) {
+          onChange(undefined);
+        }
       }}
       onChange={handleSelectChange}
       style={{ minWidth: '220px' }}
-      // onSelect={handleOnSelect}
+      onSelect={handleOnSelect}
     >
-      {selectOptions.map((optionField) => (
-        <Select.Option
-          key={optionField[outputValue] || optionField}
-          value={optionField[outputValue] || optionField}
-        >
-          {labels(optionField)}
-        </Select.Option>
-      ))}
+      {selectOptions.map((optionField) => {
+        if (!optionField) return null;
+        
+        // Get a string key for this option
+        const safeKey = getSafeValue(optionField);
+        
+        return (
+          <Select.Option
+            key={safeKey}
+            value={safeKey}
+          >
+            {labels(optionField)}
+          </Select.Option>
+        );
+      })}
       {withRedirect && <Select.Option value={addNewValue.value}>{addNewValue.label}</Select.Option>}
     </Select>
   );

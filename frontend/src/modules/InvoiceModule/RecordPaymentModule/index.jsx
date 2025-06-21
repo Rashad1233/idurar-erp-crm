@@ -11,12 +11,21 @@ import Payment from './components/Payment';
 export default function RecordPaymentModule({ config }) {
   const dispatch = useDispatch();
   const { id } = useParams();
+  
+  console.log('RecordPaymentModule - Invoice ID from params:', id);
 
-  let item = useSelector(selectItemById(id));
-
-  useEffect(() => {
-    if (item) {
-      dispatch(erp.currentItem({ data: item }));
+  let item = useSelector(selectItemById(id));  useEffect(() => {    if (item) {
+      // Keep it simple and just pass the item directly
+      // We'll handle client extraction in the RecordPayment component
+      const normalizedItem = {
+        ...item,
+        id: item.id || item._id,  // Handle both SQL and MongoDB style IDs
+      };
+      
+      console.log('Passing invoice to payment module:', normalizedItem);
+      
+      console.log('Normalized invoice item:', normalizedItem);
+      dispatch(erp.currentItem({ data: normalizedItem }));
     } else {
       dispatch(erp.read({ entity: config.entity, id }));
     }

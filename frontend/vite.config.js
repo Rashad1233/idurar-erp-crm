@@ -18,9 +18,9 @@ export default ({ mode }) => {
       alias: {
         '@': path.resolve(__dirname, 'src'),
       },
-    },
-    server: {
+    },    server: {
       port: 3000,
+      host: '0.0.0.0', // Listen on all network interfaces for Android access
       proxy: {
         '/api': {
           target: proxy_url,

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Avatar, Dropdown, Layout, Badge, Button } from 'antd';
 
 // import Notifications from '@/components/Notification';
+import NotificationPanel from '@/components/NotificationPanel';
 
 import { LogoutOutlined, ToolOutlined, UserOutlined } from '@ant-design/icons';
 
@@ -119,9 +120,9 @@ export default function HeaderContent() {
           {currentAdmin?.name?.charAt(0)?.toUpperCase()}
         </Avatar>
         {/* </Badge> */}
-      </Dropdown>
+      </Dropdown>      {/* <AppsButton /> */}
 
-      {/* <AppsButton /> */}
+      <NotificationPanel />
 
       <UpgradeButton />
     </Header>

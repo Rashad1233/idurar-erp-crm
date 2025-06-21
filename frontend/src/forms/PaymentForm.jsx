@@ -12,6 +12,8 @@ export default function PaymentForm({ maxAmount = null, isUpdateForm = false }) 
   const { TextArea } = Input;
   const money = useMoney();
   const { dateFormat } = useDate();
+  
+  console.log('PaymentForm rendered with maxAmount:', maxAmount);
   return (
     <>
       <Form.Item

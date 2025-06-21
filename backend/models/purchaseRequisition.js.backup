@@ -1,0 +1,134 @@
+const { Model, DataTypes } = require('sequelize');
+
+module.exports = (sequelize) => {
+  class PurchaseRequisition extends Model {
+    static associate(models) {
+      this.belongsTo(models.User, {
+        foreignKey: 'requestorId',
+        as: 'requestor'
+      });
+
+      this.belongsTo(models.User, {
+        foreignKey: 'currentApproverId',
+        as: 'currentApprover'
+      });
+
+      this.belongsTo(models.User, {
+        foreignKey: 'createdById',
+        as: 'createdBy'
+      });
+
+      this.belongsTo(models.User, {
+        foreignKey: 'updatedById',
+        as: 'updatedBy'
+      });
+
+      this.belongsTo(models.CostCenter, {
+        foreignKey: 'costCenterId',
+        as: 'costCenter'
+      });
+
+      this.hasMany(models.PurchaseRequisitionItem, {
+        foreignKey: 'prId',
+        as: 'items'
+      });
+
+      this.hasMany(models.PurchaseRequisitionApproval, {
+        foreignKey: 'prId',
+        as: 'approvals'
+      });
+    }
+  }
+
+  PurchaseRequisition.init({    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true
+    },
+    prNumber: {
+      type: DataTypes.STRING,
+      unique: true,
+      allowNull: false
+    },
+    description: {
+      type: DataTypes.TEXT,
+      allowNull: false
+    },
+    status: {
+      type: DataTypes.ENUM(
+        'draft',
+        'pending_approval',
+        'approved',
+        'rejected',
+        'cancelled'
+      ),
+      defaultValue: 'draft',
+      allowNull: false
+    },
+    totalAmount: {
+      type: DataTypes.DECIMAL(15, 2),
+      allowNull: false,
+      defaultValue: 0.00
+    },
+    currency: {
+      type: DataTypes.STRING,
+      defaultValue: 'USD',
+      allowNull: false
+    },
+    requestorId: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: 'users',
+        key: 'id'
+      }
+    },
+    currentApproverId: {
+      type: DataTypes.UUID,
+      references: {
+        model: 'users',
+        key: 'id'
+      }
+    },
+    costCenterId: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: 'cost_centers',
+        key: 'id'
+      }
+    },
+    requiredDate: {
+      type: DataTypes.DATE
+    },
+    comments: {
+      type: DataTypes.TEXT
+    },
+    attachments: {
+      type: DataTypes.JSON // Array of attachment URLs/paths
+    },
+    createdById: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: 'users',
+        key: 'id'
+      }
+    },
+    updatedById: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: 'users',
+        key: 'id'
+      }
+    }
+  }, {
+    sequelize,
+    modelName: 'PurchaseRequisition',
+    tableName: 'purchase_requisitions',
+    timestamps: true
+  });
+
+  return PurchaseRequisition;
+};

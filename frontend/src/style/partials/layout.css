@@ -1,5 +1,5 @@
 .wideAppContainer {
-  max-width: 1150px;
+  max-width: 1650px; /* Increased for wider tables */
 }
 
 .appContainer {
@@ -12,4 +12,51 @@
 
 .wideNavigation {
   margin-left: 220px;
+}
+
+/* Table layout improvements */
+.wide-table-container {
+  max-width: 1600px;
+  margin: 0 auto;
+  overflow-x: auto;
+}
+
+.table-responsive {
+  overflow-x: auto;
+  min-height: 400px;
+}
+
+.wide-table {
+  width: 100%;
+  overflow-x: auto;
+  min-height: 400px;
+}
+
+/* Ensure tables can use full width */
+.ant-table-wrapper {
+  width: 100%;
+  min-width: 100%;
+}
+
+.ant-table {
+  min-width: 1400px; /* Minimum width to accommodate all columns */
+}
+
+/* Remove scroll bar styles for better UX */
+.wide-table::-webkit-scrollbar {
+  height: 8px;
+}
+
+.wide-table::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.wide-table::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.wide-table::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }

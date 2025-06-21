@@ -8,8 +8,13 @@ import ResetPassword from '@/pages/ResetPassword';
 
 import { useDispatch } from 'react-redux';
 
-export default function AuthRouter() {
+export default function AuthRouter({ isLoggedIn, LoggedInComponent }) {
   const dispatch = useDispatch();
+
+  // If logged in, show the main app component, otherwise show auth routes
+  if (isLoggedIn) {
+    return <LoggedInComponent />;
+  }
 
   return (
     <Routes>

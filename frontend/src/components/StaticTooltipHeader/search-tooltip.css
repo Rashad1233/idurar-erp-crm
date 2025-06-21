@@ -1,0 +1,19 @@
+/* Search tooltip specific styles */
+.search-tooltip {
+  top: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 250px;
+}
+
+/* Make sure the search tooltip arrow is positioned correctly */
+.search-tooltip::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 8px;
+  height: 8px;
+  background: rgba(0, 0, 0, 0.75);
+}

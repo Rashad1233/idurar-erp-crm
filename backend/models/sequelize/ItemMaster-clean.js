@@ -1,0 +1,154 @@
+module.exports = (sequelize, DataTypes) => {
+  const ItemMaster = sequelize.define('ItemMaster', {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+    },
+    itemNumber: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true,
+    },
+    shortDescription: {
+      type: DataTypes.STRING(100),
+      allowNull: false,
+    },
+    longDescription: {
+      type: DataTypes.TEXT,
+      defaultValue: '',
+    },
+    standardDescription: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    manufacturerName: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    manufacturerPartNumber: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    equipmentCategory: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    equipmentSubCategory: {
+      type: DataTypes.STRING,
+      defaultValue: '',
+    },
+    unspscCodeId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: {
+        model: 'UnspscCodes',
+        key: 'id'
+      },
+    },
+    unspscCode: {
+      type: DataTypes.STRING(8),
+      defaultValue: '',
+    },
+    uom: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    equipmentTag: {
+      type: DataTypes.STRING,
+      defaultValue: '',
+    },
+    serialNumber: {
+      type: DataTypes.STRING,
+      defaultValue: 'N',
+    },
+    criticality: {
+      type: DataTypes.ENUM('HIGH', 'MEDIUM', 'LOW', 'NO'),
+      defaultValue: 'NO',
+    },
+    stockItem: {
+      type: DataTypes.ENUM('Y', 'N'),
+      defaultValue: 'N',
+    },
+    plannedStock: {
+      type: DataTypes.ENUM('Y', 'N'),
+      defaultValue: 'N',
+    },
+    stockCode: {
+      type: DataTypes.ENUM('ST1', 'ST2', 'NS3'),
+      defaultValue: 'NS3',
+    },
+    status: {
+      type: DataTypes.ENUM('DRAFT', 'PENDING_REVIEW', 'APPROVED', 'REJECTED'),
+      defaultValue: 'DRAFT',
+    },
+    contractNumber: {
+      type: DataTypes.STRING,
+      defaultValue: '',
+    },
+    supplierName: {
+      type: DataTypes.STRING,
+      defaultValue: '',
+    },
+    createdById: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: 'Users',
+        key: 'id',
+      },
+    },
+    reviewedById: {
+      type: DataTypes.UUID,
+      references: {
+        model: 'Users',
+        key: 'id',
+      },
+    },
+    approvedById: {
+      type: DataTypes.UUID,
+      references: {
+        model: 'Users',
+        key: 'id',
+      },
+    },
+    updatedById: {
+      type: DataTypes.UUID,
+      references: {
+        model: 'Users',
+        key: 'id',
+      },
+    }
+  }, {
+    tableName: 'ItemMasters',
+    timestamps: true,
+    hooks: {
+      beforeCreate: (item) => {
+        if (item.stockItem === 'Y') {
+          if (item.plannedStock === 'Y') {
+            item.stockCode = 'ST2';
+          } else {
+            item.stockCode = 'ST1';
+          }
+        } else {
+          item.stockCode = 'NS3';
+        }
+      },
+      beforeUpdate: (item) => {
+        if (item.changed('stockItem') || item.changed('plannedStock')) {
+          if (item.stockItem === 'Y') {
+            if (item.plannedStock === 'Y') {
+              item.stockCode = 'ST2';
+            } else {
+              item.stockCode = 'ST1';
+            }
+          } else {
+            item.stockCode = 'NS3';
+          }
+        }
+      }
+    }
+  });
+
+  return ItemMaster;
+};

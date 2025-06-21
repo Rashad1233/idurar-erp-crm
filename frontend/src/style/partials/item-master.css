@@ -1,0 +1,33 @@
+/* Item Master Table Styles */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.simple-table-wrapper {
+  width: 100%;
+}
+
+.simple-table-wrapper .ant-table-wrapper {
+  width: 100%;
+}
+
+/* Make sure the table uses full available width */
+.ant-table {
+  width: 100%;
+}
+
+/* Force the table to expand to fit content */
+.ant-table-container {
+  width: 100%;
+}
+
+/* Make table columns distribute evenly */
+.ant-table-cell {
+  white-space: nowrap;
+}
+
+/* Ensure the Actions column doesn't expand too much */
+.ant-table-cell:last-child {
+  width: auto;
+}

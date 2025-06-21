@@ -1,0 +1,685 @@
+import React, { useState, useEffect } from 'react';
+import { Table, Button, Input, Card, message, Space, Tag, Modal, Spin, Menu, Dropdown } from 'antd';
+import { 
+  ReloadOutlined, 
+  SearchOutlined, 
+  PlusOutlined, 
+  ExclamationCircleOutlined, 
+  EyeOutlined, 
+  EditOutlined,
+  ShoppingCartOutlined,
+  DownOutlined,
+  DeleteOutlined
+} from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
+
+import { ErpLayout } from '@/layout';
+import useLanguage from '@/locale/useLanguage';
+import inventoryService from '@/services/inventoryService';
+import { formatNumber, formatCurrency, formatQuantity } from '@/utils/numberFormat';
+import { getApiBaseUrl } from '@/utils/environment';
+import '@/style/inventory.css';
+import '@/style/improved-inventory.css';
+
+const { Search } = Input;
+const { confirm } = Modal;
+
+export default function InventoryIndex() {
+  const [loading, setLoading] = useState(false);
+  const [inventoryItems, setInventoryItems] = useState([]);
+  const [filteredItems, setFilteredItems] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const navigate = useNavigate();
+  const translate = useLanguage();
+
+  // Handle window resize for responsive behavior
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);  const loadData = async () => {
+    const startTime = performance.now();
+    setLoading(true);
+    
+    try {
+      console.log('📊 Loading inventory data...');
+      const response = await inventoryService.getInventoryItems();
+      const endTime = performance.now();
+      const duration = endTime - startTime;
+      
+      console.log('📊 Inventory data load completed in:', `${duration.toFixed(2)}ms`);
+      console.log('📊 Response:', response);
+      
+      if (response.success) {
+        const items = response.data || [];
+        setInventoryItems(items);
+        setFilteredItems(items);
+        
+        console.log(`✅ Successfully loaded ${items.length} inventory items`);
+      } else {
+        console.error('❌ Failed to load inventory data:', response.message);
+        message.error(response.message || 'Failed to load inventory data');
+      }
+    } catch (error) {
+      const endTime = performance.now();
+      const duration = endTime - startTime;
+      
+      console.error('❌ Error loading inventory data:', error);
+      message.error('Error loading inventory data');
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };  useEffect(() => {
+    loadData();
+  }, []);
+  
+  const handleSearch = (value) => {
+    setSearchTerm(value);
+    if (!value) {
+      setFilteredItems(inventoryItems);
+    } else {
+      const filtered = inventoryItems.filter(item => {
+        const searchString = value.toLowerCase();
+        
+        // Helper function to safely check if a field (which might be an object) includes the search string
+        const fieldIncludes = (field, searchTerm) => {
+          if (!field) return false;
+          if (typeof field === 'object') {
+            // If it's an object, search in common properties
+            return Object.values(field).some(val => 
+              typeof val === 'string' && val.toLowerCase().includes(searchTerm)
+            );
+          }
+          return typeof field === 'string' && field.toLowerCase().includes(searchTerm);
+        };          return (
+          fieldIncludes(item.inventoryNumber, searchString) ||
+          fieldIncludes(item.itemMaster?.itemNumber, searchString) ||
+          fieldIncludes(item.itemMaster?.shortDescription, searchString) ||
+          fieldIncludes(item.itemMaster?.unspsc?.code, searchString) ||
+          fieldIncludes(item.itemMaster?.unspsc?.title, searchString) ||
+          fieldIncludes(item.storageLocation, searchString) ||
+          fieldIncludes(item.binLocation, searchString)
+        );
+      });
+      setFilteredItems(filtered);
+    }
+  };  const getConditionTag = (condition) => {
+    const conditionMap = {
+      'A': { color: 'green', text: 'Excellent' },
+      'B': { color: 'blue', text: 'Good' },
+      'C': { color: 'orange', text: 'Fair' },
+      'D': { color: 'red', text: 'Poor' },
+      'E': { color: 'volcano', text: 'Critical' },
+    };
+    
+    // Handle case where condition might be an object or invalid
+    let conditionValue = condition;
+    if (typeof condition === 'object') {
+      conditionValue = condition.code || condition.value || '';
+    }
+      const config = conditionMap[conditionValue] || { color: 'default', text: conditionValue || 'Unknown' };
+    return <Tag color={config.color}>{config.text}</Tag>;
+  };
+  
+  const getStockLevelTag = (item) => {
+    // Handle case where values might be objects
+    let physicalBalance, minimumLevel, maximumLevel;
+    
+    // Extract physicalBalance value
+    if (item.physicalBalance && typeof item.physicalBalance === 'object') {
+      physicalBalance = parseFloat(item.physicalBalance.value || 
+                                  item.physicalBalance.quantity || 0) || 0;
+    } else {
+      physicalBalance = parseFloat(item.physicalBalance) || 0;
+    }
+    
+    // Extract minimumLevel value
+    if (item.minimumLevel && typeof item.minimumLevel === 'object') {
+      minimumLevel = parseFloat(item.minimumLevel.value || 
+                               item.minimumLevel.min || 0) || 0;
+    } else {
+      minimumLevel = parseFloat(item.minimumLevel) || 0;
+    }
+    
+    // Extract maximumLevel value
+    if (item.maximumLevel && typeof item.maximumLevel === 'object') {
+      maximumLevel = parseFloat(item.maximumLevel.value || 
+                               item.maximumLevel.max || 0) || 0;
+    } else {
+      maximumLevel = parseFloat(item.maximumLevel) || 0;
+    }
+    
+    if (physicalBalance <= minimumLevel) {
+      return <Tag color="red" icon={<ExclamationCircleOutlined />}>Low Stock</Tag>;
+    } else if (physicalBalance >= maximumLevel) {
+      return <Tag color="orange">Overstock</Tag>;
+    } else {
+      return <Tag color="green">Normal</Tag>;
+    }
+  };
+  const handleCreateReorderRequest = (record) => {
+    confirm({
+      title: 'Create Reorder Request',
+      content: `Are you sure you want to create a reorder request for ${record.inventoryNumber}?`,
+      icon: <ShoppingCartOutlined />,
+      onOk: async () => {
+        try {          
+          // Extract values handling objects
+          let physicalBalance, minimumLevel, maximumLevel;
+          
+          // Extract physicalBalance value
+          if (record.physicalBalance && typeof record.physicalBalance === 'object') {
+            physicalBalance = parseFloat(record.physicalBalance.value || 
+                                        record.physicalBalance.quantity || 0) || 0;
+          } else {
+            physicalBalance = parseFloat(record.physicalBalance) || 0;
+          }
+          
+          // Extract minimumLevel value
+          if (record.minimumLevel && typeof record.minimumLevel === 'object') {
+            minimumLevel = parseFloat(record.minimumLevel.value || 
+                                     record.minimumLevel.min || 0) || 0;
+          } else {
+            minimumLevel = parseFloat(record.minimumLevel) || 0;
+          }
+          
+          // Extract maximumLevel value
+          if (record.maximumLevel && typeof record.maximumLevel === 'object') {
+            maximumLevel = parseFloat(record.maximumLevel.value || 
+                                     record.maximumLevel.max || 0) || 0;
+          } else {
+            maximumLevel = parseFloat(record.maximumLevel) || 0;
+          }
+          
+          const reorderData = {
+            items: [{
+              inventoryId: record.id,
+              requestedQuantity: record.getReorderQuantity 
+                ? record.getReorderQuantity() 
+                : maximumLevel - physicalBalance,
+              priority: physicalBalance <= minimumLevel ? 'URGENT' : 'NORMAL'
+            }],
+            requestType: 'MANUAL',
+            justification: `Low stock detected for ${record.inventoryNumber}`
+          };
+          
+          const response = await inventoryService.createReorderRequest(reorderData);
+          if (response.success) {
+            message.success('Reorder request created successfully');
+            loadData(); // Refresh data
+          } else {
+            message.error(response.message || 'Failed to create reorder request');
+          }
+        } catch (error) {
+          message.error('Error creating reorder request');
+          console.error(error);
+        }
+      }
+    });
+  };  const handleDeleteInventory = async (record) => {
+    Modal.confirm({
+      title: translate('Are you sure you want to delete this inventory item?'),
+      icon: <ExclamationCircleOutlined />,      content: (
+        <div>
+          <p><strong>{translate('Inventory Number')}:</strong> {record.inventoryNumber}</p>
+          <p><strong>{translate('Description')}:</strong> {record.itemMaster?.shortDescription || 'N/A'}</p>
+          <p><strong>{translate('Physical Balance')}:</strong> {formatQuantity(record.physicalBalance, record.itemMaster?.uom)} </p>
+          <br />
+          <p style={{ color: '#ff4d4f' }}>{translate('This action cannot be undone.')}</p>
+        </div>
+      ),okText: translate('Delete'),
+      okType: 'danger',
+      cancelText: translate('Cancel'),
+      onOk: async () => {
+        const startTime = performance.now();
+        
+        try {
+          console.group(`🗑️ INVENTORY DELETE OPERATION - Item ${record.id}`);
+          console.log('Delete operation started at:', new Date().toISOString());
+          console.log('Item details:', {
+            id: record.id,
+            inventoryNumber: record.inventoryNumber,
+            description: record.itemMaster?.shortDescription,
+            physicalBalance: record.physicalBalance
+          });
+
+          // Show loading message
+          const hideLoading = message.loading('Deleting inventory item...', 0);
+
+          const response = await inventoryService.deleteInventory(record.id);
+          const endTime = performance.now();
+          const duration = endTime - startTime;
+
+          hideLoading();
+
+          console.log('Delete operation completed in:', `${duration.toFixed(2)}ms`);
+          console.log('Service response:', response);
+
+          if (response && response.success !== false) {
+            const successMessage = response.message || 'Inventory item deleted successfully';
+            console.log('✅ DELETE SUCCESS:', successMessage);
+            
+            message.success(successMessage);
+            
+            // Reload data and log the reload
+            console.log('Reloading inventory data...');
+            await loadData();
+            
+          } else {
+            const errorMessage = response.message || 'Failed to delete inventory item';
+            console.error('❌ DELETE FAILED:', errorMessage);
+            
+            message.error(errorMessage);
+          }
+
+        } catch (error) {
+          const endTime = performance.now();
+          const duration = endTime - startTime;
+          
+          console.error('❌ DELETE OPERATION EXCEPTION:', error);
+          console.error('Error details:', {
+            message: error.message,
+            stack: error.stack,
+            name: error.name
+          });
+
+          message.error('Error deleting inventory item: ' + error.message);
+        } finally {
+          console.groupEnd();
+        }
+      }
+    });
+  };
+
+  const columns = [
+    {      title: translate('Inventory Number'),
+      dataIndex: 'inventoryNumber',
+      key: 'inventoryNumber',
+      width: 200,      fixed: 'left',
+      sorter: (a, b) => (a.inventoryNumber || '').localeCompare(b.inventoryNumber || ''),
+      ellipsis: true,
+      render: (text) => {
+        if (text && typeof text === 'object') {
+          const displayText = text.id || text.code || JSON.stringify(text);
+          return <span>{displayText}</span>;
+        }
+        return <span>{text}</span>;
+      }
+    },
+    {title: translate('Item Number'),
+      dataIndex: ['itemMaster', 'itemNumber'],
+      key: 'itemNumber',
+      width: 160,
+      sorter: (a, b) => {
+        const aVal = a.itemMaster?.itemNumber || '';
+        const bVal = b.itemMaster?.itemNumber || '';
+        return aVal.localeCompare(bVal);
+      },
+      ellipsis: true,
+      render: (text) => {        if (text && typeof text === 'object') {
+          const displayText = text.code || text.id || JSON.stringify(text);
+          return <span>{displayText}</span>;
+        }
+        return <span>{text}</span>;
+      }
+    },    {      title: translate('Description'),
+      dataIndex: ['itemMaster', 'shortDescription'],
+      key: 'description',
+      width: 320,
+      sorter: (a, b) => {
+        const aVal = a.itemMaster?.shortDescription || '';
+        const bVal = b.itemMaster?.shortDescription || '';
+        return aVal.localeCompare(bVal);
+      },
+      ellipsis: true,
+      render: (text) => {
+        if (text && typeof text === 'object') {
+          const displayText = text.description || text.name || JSON.stringify(text);
+          return <span>{displayText}</span>;
+        }
+        return <span>{text}</span>;
+      }},{      title: translate('Physical Balance'),
+      dataIndex: 'physicalBalance',
+      key: 'physicalBalance',
+      width: 180,
+      align: 'right',
+      sorter: (a, b) => {
+        const aVal = typeof a.physicalBalance === 'object' ? parseFloat(a.physicalBalance.value || 0) : parseFloat(a.physicalBalance || 0);
+        const bVal = typeof b.physicalBalance === 'object' ? parseFloat(b.physicalBalance.value || 0) : parseFloat(b.physicalBalance || 0);
+        return aVal - bVal;
+      },
+      render: (text, record) => {
+        let value = text;
+        let uom = record.itemMaster?.uom || 'EA';
+        
+        // Handle if physicalBalance is an object
+        if (text && typeof text === 'object') {
+          value = text.value || text.quantity || 0;
+          if (text.uom) uom = text.uom;
+        }
+        
+        return (
+          <span>
+            {formatQuantity(value, uom)}
+          </span>
+        );
+      },
+    },
+    {        title: translate('Unit Price'),
+      dataIndex: 'unitPrice',
+      key: 'unitPrice',
+      width: 150,
+      align: 'right',
+      sorter: (a, b) => (a.unitPrice || 0) - (b.unitPrice || 0),
+      render: (text) => formatCurrency(text),
+    },    {      title: translate('Line Value'),
+      dataIndex: 'linePrice',
+      key: 'linePrice',
+      width: 150,
+      align: 'right',
+      sorter: (a, b) => (a.linePrice || 0) - (b.linePrice || 0),
+      render: (text) => formatCurrency(text),
+    },    {
+      title: translate('UNSPSC Code'),
+      dataIndex: ['itemMaster', 'unspsc'],
+      key: 'unspscCode',
+      width: 150,
+      ellipsis: true,
+      render: (unspsc) => {
+        // Handle the UNSPSC object from itemMaster relationship        if (unspsc && typeof unspsc === 'object' && unspsc.code) {
+          return <span>{unspsc.code}</span>;
+        }
+        return <span>-</span>;
+      },
+      sorter: (a, b) => {
+        const aVal = a.itemMaster?.unspsc?.code || '';        const bVal = b.itemMaster?.unspsc?.code || '';
+        return aVal.localeCompare(bVal);
+      },
+    },
+    {title: translate('Storage Location'),
+      dataIndex: 'storageLocation',
+      key: 'storageLocation',
+      width: 150,
+      ellipsis: true,
+      render: (storageLocation) => {
+        // Handle if storageLocation is an object with code and description
+        if (storageLocation && typeof storageLocation === 'object') {
+          const displayText = storageLocation.code || storageLocation.description || storageLocation.name || storageLocation.location;
+          return <span>{displayText}</span>;
+        }
+        return <span>{storageLocation || translate('Not specified')}</span>;
+      },
+      sorter: (a, b) => {
+        const aVal = typeof a.storageLocation === 'object' 
+          ? (a.storageLocation?.code || a.storageLocation?.description || '') 
+          : (a.storageLocation || '');
+        const bVal = typeof b.storageLocation === 'object' 
+          ? (b.storageLocation?.code || b.storageLocation?.description || '') 
+          : (b.storageLocation || '');
+        return aVal.localeCompare(bVal);
+      },
+    },
+    {
+      title: translate('Bin Location'),
+      dataIndex: 'binLocation',
+      key: 'binLocation',
+      width: 120,
+      ellipsis: true,
+      render: (binLocation) => {
+        // Handle if binLocation is an object with binCode and description
+        if (binLocation && typeof binLocation === 'object') {
+          const displayText = binLocation.binCode || binLocation.code || binLocation.description;
+          const tooltipText = binLocation.binCode && binLocation.description 
+            ? `${binLocation.binCode}: ${binLocation.description}` 
+            : displayText;
+          return (
+            <Tooltip title={tooltipText}>
+              <span>{displayText}</span>
+            </Tooltip>
+          );
+        }
+        return (
+          <Tooltip title={binLocation || translate('Not specified')}>
+            <span>{binLocation || translate('Not specified')}</span>
+          </Tooltip>
+        );
+      },
+      sorter: (a, b) => {
+        const aVal = typeof a.binLocation === 'object' 
+          ? (a.binLocation?.binCode || a.binLocation?.code || '') 
+          : (a.binLocation || '');
+        const bVal = typeof b.binLocation === 'object' 
+          ? (b.binLocation?.binCode || b.binLocation?.code || '') 
+          : (b.binLocation || '');
+        return aVal.localeCompare(bVal);
+      },
+    },{
+      title: translate('Condition'),
+      dataIndex: 'condition',
+      key: 'condition',
+      width: 120,
+      render: (text) => {
+        if (!text) return getConditionTag('');
+        if (typeof text === 'object') {
+          return getConditionTag(text.code || text.value || '');
+        }
+        return getConditionTag(text);
+      }
+    },{
+      title: translate('Min Level'),
+      dataIndex: 'minimumLevel',
+      key: 'minimumLevel',
+      width: 120,
+      align: 'right',
+      sorter: (a, b) => {
+        const aVal = typeof a.minimumLevel === 'object' ? parseFloat(a.minimumLevel.value || 0) : parseFloat(a.minimumLevel || 0);
+        const bVal = typeof b.minimumLevel === 'object' ? parseFloat(b.minimumLevel.value || 0) : parseFloat(b.minimumLevel || 0);
+        return aVal - bVal;
+      },
+      render: (text) => {
+        // Handle if minimumLevel is an object
+        if (text && typeof text === 'object') {
+          const value = text.value || text.quantity || text.min || 0;
+          return formatNumber(value, 0);
+        }
+        return formatNumber(text, 0);
+      }
+    },    {
+      title: translate('Max Level'),
+      dataIndex: 'maximumLevel',
+      key: 'maximumLevel',
+      width: 120,
+      align: 'right',
+      sorter: (a, b) => {
+        const aVal = typeof a.maximumLevel === 'object' ? parseFloat(a.maximumLevel.value || 0) : parseFloat(a.maximumLevel || 0);
+        const bVal = typeof b.maximumLevel === 'object' ? parseFloat(b.maximumLevel.value || 0) : parseFloat(b.maximumLevel || 0);
+        return aVal - bVal;
+      },
+      render: (text) => {
+        // Handle if maximumLevel is an object
+        if (text && typeof text === 'object') {
+          const value = text.value || text.quantity || text.max || 0;
+          return formatNumber(value, 0);
+        }
+        return formatNumber(text, 0);
+      }
+    },
+    {      title: translate('Actions'),
+      key: 'actions',
+      width: 150,
+      fixed: 'right',
+      render: (_, record) => (
+        <Space>
+          <Tooltip title={translate('View Details')}>
+            <Button
+              type="link"
+              icon={<EyeOutlined />}
+              onClick={() => navigate(`/inventory/${record.id}/read`)}
+              size="small"
+            />
+          </Tooltip>
+          <Tooltip title={translate('Edit')}>
+            <Button
+              type="link" 
+              icon={<EditOutlined />}
+              onClick={() => navigate(`/inventory/${record.id}/update`)}
+              size="small"
+            />
+          </Tooltip>
+          {record.physicalBalance <= record.minimumLevel && (
+            <Tooltip title={translate('Create Reorder Request')}>
+              <Button
+                type="link"
+                icon={<ShoppingCartOutlined />}
+                onClick={() => handleCreateReorderRequest(record)}
+                size="small"
+                style={{ color: '#ff4d4f' }}
+              />
+            </Tooltip>
+          )}          <Tooltip title={translate('Delete')}>
+            <Button
+              type="link"
+              icon={<DeleteOutlined />}
+              onClick={() => handleDeleteInventory(record)}
+              size="small"
+              style={{ color: '#ff4d4f' }}
+            />
+          </Tooltip>
+        </Space>
+      ),
+    },
+  ];
+
+  return (    <ErpLayout>      <Card 
+        title={translate('Inventory Management')}        extra={
+          <Space>
+            <Dropdown
+              menu={{
+                items: [
+                  {
+                    key: 'search',
+                    icon: <SearchOutlined />,
+                    label: translate('Advanced Search'),
+                    onClick: () => navigate('/inventory/search')
+                  },
+                  {
+                    key: 'reorder',
+                    icon: <ShoppingCartOutlined />,
+                    label: translate('Reorder Request'),
+                    onClick: () => navigate('/inventory/reorder')
+                  },
+                  {
+                    key: 'create-item',
+                    icon: <PlusOutlined />,
+                    label: translate('Create Inventory Item'),
+                    onClick: () => navigate('/inventory/create-item')
+                  }
+                ]
+              }}
+            >              <Button>
+                {translate('Inventory Actions')} <DownOutlined />
+              </Button>
+            </Dropdown>            <Search
+              placeholder={translate('Search by ID, description, UNSPSC, location, bin')}
+              onSearch={handleSearch}
+              style={{ width: 300 }}
+              allowClear
+            />
+            <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading} />
+            <Button 
+              type="primary"
+              style={{ backgroundColor: '#1890ff', color: 'white' }} 
+              icon={<PlusOutlined />} 
+              onClick={() => navigate('/inventory/create-item')}
+            >
+              {translate('Create Inventory Item')}
+            </Button>          </Space>
+        }
+      >        <Spin spinning={loading}>
+          <div className="inventory-table-container" style={{ minHeight: '600px', paddingBottom: '20px' }}>
+            <Table
+              columns={columns}
+              dataSource={filteredItems}
+              rowKey="id"              scroll={{ 
+                x: Math.max(1600, window.innerWidth - 100), // Ensure generous horizontal space
+                y: window.innerHeight - 80 // Ultra maximum height with absolute minimal offset
+              }}
+              pagination={{
+                total: filteredItems.length,
+                pageSize: window.innerWidth < 768 ? 20 : 50, // Smaller page size on mobile
+                showSizeChanger: true,
+                showQuickJumper: window.innerWidth >= 768, // Hide quick jumper on mobile
+                showTotal: (total, range) =>
+                  window.innerWidth < 576 
+                    ? `${range[0]}-${range[1]}/${total}` // Shorter format on mobile
+                    : `${range[0]}-${range[1]} of ${total} items`,
+                responsive: true,
+                size: window.innerWidth < 768 ? 'small' : 'default',
+                pageSizeOptions: window.innerWidth < 768 
+                  ? ['10', '20', '50'] 
+                  : ['20', '50', '100', '200'],
+                showLessItems: window.innerWidth < 768,
+                hideOnSinglePage: false,
+                position: ['bottomCenter'], // Center pagination on all devices
+              }}
+              size="small"
+              bordered
+              sticky={{ 
+                offsetHeader: 80, // Increased offset for header
+                offsetScroll: 10, // Add some scroll offset to prevent content clipping
+                getContainer: () => window,
+              }}
+              summary={(pageData) => {
+              // Convert linePrice values to numbers and handle null/undefined values
+              const totalValue = pageData.reduce((sum, item) => {
+                let linePrice = 0;
+                try {
+                  linePrice = parseFloat(item.linePrice) || 0;
+                  if (isNaN(linePrice)) linePrice = 0;
+                } catch (e) {
+                  linePrice = 0;
+                }
+                return sum + linePrice;              }, 0);
+              const totalItems = pageData.reduce((sum, item) => {
+                let physicalBalance = 0;
+                try {
+                  // Handle case where physicalBalance is an object
+                  if (item.physicalBalance && typeof item.physicalBalance === 'object') {
+                    physicalBalance = parseFloat(item.physicalBalance.value || 
+                                               item.physicalBalance.quantity || 0) || 0;
+                  } else {
+                    physicalBalance = parseFloat(item.physicalBalance) || 0;
+                  }
+                  
+                  if (isNaN(physicalBalance)) physicalBalance = 0;
+                } catch (e) {
+                  physicalBalance = 0;
+                }
+                return sum + physicalBalance;
+              }, 0);
+              
+              return (
+                <Table.Summary.Row>
+                  <Table.Summary.Cell colSpan={3}>
+                    <strong>{translate('Page Total')}</strong>
+                  </Table.Summary.Cell>
+                  <Table.Summary.Cell align="right">
+                    <strong>{formatQuantity(totalItems)}</strong>
+                  </Table.Summary.Cell>
+                  <Table.Summary.Cell colSpan={1} />
+                  <Table.Summary.Cell align="right">
+                    <strong>{formatCurrency(totalValue)}</strong>
+                  </Table.Summary.Cell>
+                  <Table.Summary.Cell colSpan={10} />
+                </Table.Summary.Row>
+              );
+            }}
+          />
+          </div>
+        </Spin>
+      </Card>
+    </ErpLayout>
+  );
+}

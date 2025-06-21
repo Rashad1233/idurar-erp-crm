@@ -1,0 +1,50 @@
+.item-master-form-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.item-master-card {
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 24px;
+}
+
+.form-header {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.item-master-form .ant-form-item {
+  margin-bottom: 20px;
+}
+
+.form-actions {
+  margin-top: 24px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Enhanced UNSPSC section */
+.unspsc-section {
+  margin-bottom: 24px;
+  border: 1px solid #f0f0f0;
+  padding: 16px;
+  border-radius: 8px;
+  background-color: #fafafa;
+}
+
+.unspsc-search-box {
+  width: 100%;
+}
+
+/* Form layout improvements for responsive design */
+@media (max-width: 768px) {
+  .item-master-form-container {
+    padding: 0 8px;
+  }
+  
+  .form-header h3 {
+    font-size: 18px;
+  }
+}

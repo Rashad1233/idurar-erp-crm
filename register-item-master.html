@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register Item Master - Direct API Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1, h2 {
+            color: #2c3e50;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .response {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+            white-space: pre-wrap;
+        }
+        .success {
+            border-color: #4CAF50;
+            background-color: #e7f7e7;
+        }
+        .error {
+            border-color: #f44336;
+            background-color: #ffe7e7;
+        }
+    </style>
+</head>
+<body>
+    <h1>Register Item Master - Direct API Test</h1>
+    <p>This form directly tests the register-item-master API endpoint.</p>
+    
+    <form id="itemForm">
+        <div class="form-group">
+            <label for="itemNumber">Item Number:</label>
+            <input type="text" id="itemNumber" name="itemNumber" value="" placeholder="Auto-generated if empty">
+        </div>
+
+        <div class="form-group">
+            <label for="shortDescription">Short Description:</label>
+            <input type="text" id="shortDescription" name="shortDescription" required>
+        </div>
+
+        <div class="form-group">
+            <label for="longDescription">Long Description:</label>
+            <textarea id="longDescription" name="longDescription" rows="3"></textarea>
+        </div>
+        
+        <div class="form-group">
+            <label for="standardDescription">Standard Description:</label>
+            <input type="text" id="standardDescription" name="standardDescription">
+        </div>
+
+        <div class="form-group">
+            <label for="uom">Unit of Measure:</label>
+            <select id="uom" name="uom">
+                <option value="EA">Each (EA)</option>
+                <option value="PCS">Pieces (PCS)</option>
+                <option value="KG">Kilogram (KG)</option>
+                <option value="L">Liter (L)</option>
+                <option value="M">Meter (M)</option>
+                <option value="BOX">Box (BOX)</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="equipmentCategory">Equipment Category:</label>
+            <select id="equipmentCategory" name="equipmentCategory">
+                <option value="VALVE">Valve</option>
+                <option value="PUMP">Pump</option>
+                <option value="MOTOR">Motor</option>
+                <option value="ELECTRICAL">Electrical</option>
+                <option value="INSTRUMENTATION">Instrumentation</option>
+                <option value="OTHER">Other</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="equipmentSubCategory">Equipment Sub-Category:</label>
+            <select id="equipmentSubCategory" name="equipmentSubCategory">
+                <option value="GATE">Gate Valve</option>
+                <option value="BALL">Ball Valve</option>
+                <option value="CENTRIFUGAL">Centrifugal Pump</option>
+                <option value="AC">AC Motor</option>
+                <option value="MISC">Miscellaneous</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="unspscCode">UNSPSC Code:</label>
+            <input type="text" id="unspscCode" name="unspscCode" value="12131400">
+        </div>
+
+        <div class="form-group">
+            <label for="manufacturerName">Manufacturer Name:</label>
+            <input type="text" id="manufacturerName" name="manufacturerName">
+        </div>
+
+        <div class="form-group">
+            <label for="manufacturerPartNumber">Manufacturer Part Number:</label>
+            <input type="text" id="manufacturerPartNumber" name="manufacturerPartNumber">
+        </div>
+
+        <div class="form-group">
+            <label for="criticality">Criticality:</label>
+            <select id="criticality" name="criticality">
+                <option value="NO">Not Critical</option>
+                <option value="LOW">Low Criticality</option>
+                <option value="MEDIUM">Medium Criticality</option>
+                <option value="HIGH">High Criticality</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>
+                <input type="checkbox" id="stockItem" name="stockItem"> Stock Item
+            </label>
+        </div>
+
+        <div class="form-group">
+            <label>
+                <input type="checkbox" id="plannedStock" name="plannedStock"> Planned Stock
+            </label>
+        </div>
+
+        <div class="form-group">
+            <label for="createdById">Created By ID (leave empty for default):</label>
+            <input type="text" id="createdById" name="createdById">
+        </div>
+
+        <button type="submit" id="submitBtn">Create Item</button>
+    </form>
+
+    <h2>Response:</h2>
+    <div id="response" class="response"></div>
+
+    <script>
+        document.getElementById('itemForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const responseDiv = document.getElementById('response');
+            responseDiv.className = 'response';
+            responseDiv.textContent = 'Sending request...';
+            
+            try {
+                // Gather form data
+                const formData = new FormData(this);
+                const data = {};
+                
+                for (let [key, value] of formData.entries()) {
+                    data[key] = value;
+                }
+                
+                // Handle checkboxes specially
+                data.stockItem = document.getElementById('stockItem').checked ? 'Y' : 'N';
+                data.plannedStock = document.getElementById('plannedStock').checked ? 'Y' : 'N';
+                
+                // Generate random item number if empty
+                if (!data.itemNumber) {
+                    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+                    const prefix = letters.charAt(Math.floor(Math.random() * letters.length)) + 
+                                  letters.charAt(Math.floor(Math.random() * letters.length));
+                    const number = Math.floor(100000 + Math.random() * 900000);
+                    data.itemNumber = `${prefix}-${number}`;
+                    document.getElementById('itemNumber').value = data.itemNumber;
+                }
+                
+                // Send to API
+                const response = await fetch('http://localhost:8888/api/register-item-master', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                // Display result
+                responseDiv.textContent = JSON.stringify(result, null, 2);
+                responseDiv.className = response.ok ? 'response success' : 'response error';
+                
+            } catch (error) {
+                responseDiv.textContent = `Error: ${error.message}`;
+                responseDiv.className = 'response error';
+            }
+        });
+    </script>
+</body>
+</html>

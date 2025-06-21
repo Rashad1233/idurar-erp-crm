@@ -5,10 +5,10 @@ import { Button, Drawer, Layout, Menu } from 'antd';
 import { useAppContext } from '@/context/appContext';
 
 import useLanguage from '@/locale/useLanguage';
-import logoIcon from '@/style/images/logo-icon.svg';
-import logoText from '@/style/images/logo-text.svg';
+import MimiAppLogo from '@/components/MimiAppLogo';
 
 import useResponsive from '@/hooks/useResponsive';
+import ProcurementMenu from '@/navigation/ProcurementMenu';
 
 import {
   SettingOutlined,
@@ -26,6 +26,17 @@ import {
   FilterOutlined,
   WalletOutlined,
   ReconciliationOutlined,
+  ShoppingCartOutlined,
+  FormOutlined,
+  FileTextOutlined,
+  FileProtectOutlined,
+  DatabaseOutlined,
+  AppstoreOutlined,
+  HomeOutlined,
+  DollarOutlined,
+  FileSearchOutlined,
+  BarChartOutlined,
+  AuditOutlined,
 } from '@ant-design/icons';
 
 const { Sider } = Layout;
@@ -46,55 +57,62 @@ function Sidebar({ collapsible, isMobile = false }) {
   const [currentPath, setCurrentPath] = useState(location.pathname.slice(1));
 
   const translate = useLanguage();
-  const navigate = useNavigate();
-
-  const items = [
+  const navigate = useNavigate();  const items = [
     {
       key: 'dashboard',
       icon: <DashboardOutlined />,
       label: <Link to={'/'}>{translate('dashboard')}</Link>,
-    },
+    },    
+    // Procurement Module
     {
-      key: 'customer',
-      icon: <CustomerServiceOutlined />,
-      label: <Link to={'/customer'}>{translate('customers')}</Link>,
+      key: 'procurement-module',
+      icon: <ShoppingCartOutlined />,
+      label: translate('procurement'),
+      children: [
+        {
+          key: 'purchase-requisition',
+          label: <Link to={'/purchase-requisition'}>{translate('Purchase Requisition')}</Link>,
+        },
+        {
+          key: 'rfq',
+          label: <Link to={'/rfq'}>{translate('Request for Quotation')}</Link>,
+        },
+        {
+          key: 'purchase-order',
+          label: <Link to={'/purchase-order'}>{translate('Purchase Order')}</Link>,
+        },
+        {
+          key: 'supplier',
+          label: <Link to={'/supplier'}>{translate('Suppliers')}</Link>,
+        },
+        {
+          key: 'contract',
+          label: <Link to={'/contract'}>{translate('Contracts')}</Link>,
+        },
+      ],
     },
-
+    // Inventory Module
     {
-      key: 'invoice',
-      icon: <ContainerOutlined />,
-      label: <Link to={'/invoice'}>{translate('invoices')}</Link>,
-    },
-    {
-      key: 'quote',
-      icon: <FileSyncOutlined />,
-      label: <Link to={'/quote'}>{translate('quote')}</Link>,
-    },
-    {
-      key: 'payment',
-      icon: <CreditCardOutlined />,
-      label: <Link to={'/payment'}>{translate('payments')}</Link>,
-    },
-
-    {
-      key: 'paymentMode',
-      label: <Link to={'/payment/mode'}>{translate('payments_mode')}</Link>,
-      icon: <WalletOutlined />,
-    },
-    {
-      key: 'taxes',
-      label: <Link to={'/taxes'}>{translate('taxes')}</Link>,
-      icon: <ShopOutlined />,
-    },
-    {
-      key: 'generalSettings',
-      label: <Link to={'/settings'}>{translate('settings')}</Link>,
-      icon: <SettingOutlined />,
-    },
-    {
-      key: 'about',
-      label: <Link to={'/about'}>{translate('about')}</Link>,
-      icon: <ReconciliationOutlined />,
+      key: 'inventory-module',
+      icon: <DatabaseOutlined />,
+      label: translate('inventory'),
+      children: [        {
+          key: 'item-master',
+          label: <Link to={'/item-master'}>{translate('Item Master')}</Link>,
+        },
+        {
+          key: 'inventory',
+          label: <Link to={'/inventory'}>{translate('Inventory')}</Link>,
+        },
+        {
+          key: 'warehouse',
+          label: <Link to={'/warehouse'}>{translate('Warehouse')}</Link>,
+        },
+        {
+          key: 'inventory-reporting',
+          label: <Link to={'/inventory/reporting'}>{translate('Reporting')}</Link>,
+        },
+      ],
     },
   ];
 
@@ -149,21 +167,14 @@ function Sidebar({ collapsible, isMobile = false }) {
         onClick={() => navigate('/')}
         style={{
           cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '0 15px',
+          height: '64px'
         }}
       >
-        <img src={logoIcon} alt="Logo" style={{ marginLeft: '-5px', height: '40px' }} />
-
-        {!showLogoApp && (
-          <img
-            src={logoText}
-            alt="Logo"
-            style={{
-              marginTop: '3px',
-              marginLeft: '10px',
-              height: '38px',
-            }}
-          />
-        )}
+        <MimiAppLogo />
       </div>
       <Menu
         items={items}

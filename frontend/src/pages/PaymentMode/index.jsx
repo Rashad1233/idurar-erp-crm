@@ -4,7 +4,7 @@ import useLanguage from '@/locale/useLanguage';
 
 import { Switch } from 'antd';
 import { CloseOutlined, CheckOutlined } from '@ant-design/icons';
-import CrudModule from '@/modules/CrudModule/CrudModule';
+import SimpleCrudModule from '@/modules/SimpleCrudModule';
 import PaymentModeForm from '@/forms/PaymentModeForm';
 
 export default function PaymentMode() {
@@ -110,12 +110,12 @@ export default function PaymentMode() {
     dataTableColumns,
     searchConfig,
     deleteModalLabels,
-  };
-  return (
-    <CrudModule
-      createForm={<PaymentModeForm />}
-      updateForm={<PaymentModeForm isUpdateForm={true} />}
-      config={config}
+  };  return (
+    <SimpleCrudModule
+      entity={entity}
+      dataTableColumns={dataTableColumns}
+      searchConfig={searchConfig}
+      entityDisplayLabels={deleteModalLabels}
     />
   );
 }

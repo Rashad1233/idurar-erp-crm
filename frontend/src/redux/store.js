@@ -14,9 +14,63 @@ const AUTH_INITIAL_STATE = {
   isSuccess: false,
 };
 
-const auth_state = storePersist.get('auth') ? storePersist.get('auth') : AUTH_INITIAL_STATE;
+// Check if user is logged in from localStorage
+const getInitialAuthState = () => {
+  const stored_auth = storePersist.get('auth');
+  
+  if (stored_auth && stored_auth.current && stored_auth.current.token) {
+    // User has a valid token, consider them logged in
+    return {
+      ...stored_auth,
+      isLoggedIn: true,
+      isLoading: false
+    };
+  }
+  
+  return AUTH_INITIAL_STATE;
+};
 
-const initialState = { auth: auth_state };
+// Get initial settings from localStorage or use defaults
+const getInitialSettingsState = () => {
+  const stored_settings = storePersist.get('settings');
+  
+  if (stored_settings) {
+    return {
+      result: stored_settings,
+      isLoading: false,
+      isSuccess: true
+    };
+  }
+  
+  // Default settings if none are found
+  return {
+    result: {
+      crm_settings: {},
+      finance_settings: {},
+      company_settings: {},
+      app_settings: {},
+      money_format_settings: {
+        default_currency_code: 'USD',
+        currency_symbol: '$',
+        currency_position: 'before',
+        decimal_sep: '.',
+        thousand_sep: ',',
+        cent_precision: 2,
+        zero_format: false
+      }
+    },
+    isLoading: false,
+    isSuccess: true
+  };
+};
+
+const auth_state = getInitialAuthState();
+const settings_state = getInitialSettingsState();
+
+const initialState = { 
+  auth: auth_state,
+  settings: settings_state
+};
 
 const store = configureStore({
   reducer: rootReducer,

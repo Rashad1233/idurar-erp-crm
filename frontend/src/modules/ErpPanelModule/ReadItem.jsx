@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Divider } from 'antd';
 
-import { Button, Row, Col, Descriptions, Statistic, Tag } from 'antd';
+import { Button, Row, Col, Descriptions, Statistic, Tag, message } from 'antd';
 import { PageHeader } from '@ant-design/pro-layout';
 import {
   EditOutlined,
@@ -26,8 +26,10 @@ import { useNavigate } from 'react-router-dom';
 
 const Item = ({ item, currentErp }) => {
   const { moneyFormatter } = useMoney();
+  const itemKey = item.id || item._id || uniqueId();
+  
   return (
-    <Row gutter={[12, 0]} key={item._id}>
+    <Row gutter={[12, 0]} key={itemKey}>
       <Col className="gutter-row" span={11}>
         <p style={{ marginBottom: 5 }}>
           <strong>{item.itemName}</strong>
@@ -101,14 +103,24 @@ export default function ReadItem({ config, selectedItem }) {
 
   useEffect(() => {
     if (currentResult) {
-      const { items, invoice, ...others } = currentResult;
-
-      if (items) {
-        setItemsList(items);
-        setCurrentErp(currentResult);
-      } else if (invoice.items) {
-        setItemsList(invoice.items);
-        setCurrentErp({ ...invoice.items, ...others, ...invoice });
+      console.log('Current result:', currentResult);
+      try {
+        const recordId = currentResult.id || currentResult._id;
+        
+        if (currentResult.items) {
+          setItemsList(currentResult.items);
+          setCurrentErp(currentResult);
+        } else if (currentResult.invoice && currentResult.invoice.items) {
+          setItemsList(currentResult.invoice.items);
+          setCurrentErp({ ...currentResult.invoice.items, ...currentResult, ...currentResult.invoice });
+        } else {
+          console.warn('No items found in the result');
+          setItemsList([]);
+          setCurrentErp(currentResult);
+        }
+      } catch (error) {
+        console.error('Error processing invoice data:', error);
+        message.error('Error displaying invoice details');
       }
     }
     return () => {
@@ -122,6 +134,16 @@ export default function ReadItem({ config, selectedItem }) {
       setClient(currentErp.client);
     }
   }, [currentErp]);
+
+  const recordId = currentErp?.id || currentErp?._id;
+  
+  if (!recordId) {
+    return (
+      <div>
+        <p>Loading invoice details...</p>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -153,7 +175,7 @@ export default function ReadItem({ config, selectedItem }) {
             key={`${uniqueId()}`}
             onClick={() => {
               window.open(
-                `${DOWNLOAD_BASE_URL}${entity}/${entity}-${currentErp._id}.pdf`,
+                `${DOWNLOAD_BASE_URL}${entity}/${entity}-${recordId}.pdf`,
                 '_blank'
               );
             }}
@@ -165,7 +187,7 @@ export default function ReadItem({ config, selectedItem }) {
             key={`${uniqueId()}`}
             loading={mailInProgress}
             onClick={() => {
-              send(currentErp._id);
+              send(recordId);
             }}
             icon={<MailOutlined />}
           >
@@ -174,7 +196,7 @@ export default function ReadItem({ config, selectedItem }) {
           <Button
             key={`${uniqueId()}`}
             onClick={() => {
-              dispatch(erp.convert({ entity, id: currentErp._id }));
+              dispatch(erp.convert({ entity, id: recordId }));
             }}
             icon={<RetweetOutlined />}
             style={{ display: entity === 'quote' ? 'inline-block' : 'none' }}
@@ -191,7 +213,7 @@ export default function ReadItem({ config, selectedItem }) {
                   data: currentErp,
                 })
               );
-              navigate(`/${entity.toLowerCase()}/update/${currentErp._id}`);
+              navigate(`/${entity.toLowerCase()}/update/${recordId}`);
             }}
             type="primary"
             icon={<EditOutlined />}
@@ -235,7 +257,7 @@ export default function ReadItem({ config, selectedItem }) {
         </Row>
       </PageHeader>
       <Divider dashed />
-      <Descriptions title={`Client : ${currentErp.client.name}`}>
+      <Descriptions title={`Client : ${client.name || ''}`}>
         <Descriptions.Item label={translate('Address')}>{client.address}</Descriptions.Item>
         <Descriptions.Item label={translate('email')}>{client.email}</Descriptions.Item>
         <Descriptions.Item label={translate('Phone')}>{client.phone}</Descriptions.Item>
@@ -274,49 +296,11 @@ export default function ReadItem({ config, selectedItem }) {
             <strong>{translate('Total')}</strong>
           </p>
         </Col>
-        <Divider />
+        <Divider dashed style={{ marginTop: 0, marginBottom: 15 }} />
       </Row>
       {itemslist.map((item) => (
-        <Item key={item._id} item={item} currentErp={currentErp}></Item>
+        <Item key={item.id || item._id || uniqueId()} item={item} currentErp={currentErp} />
       ))}
-      <div
-        style={{
-          width: '300px',
-          float: 'right',
-          textAlign: 'right',
-          fontWeight: '700',
-        }}
-      >
-        <Row gutter={[12, -5]}>
-          <Col className="gutter-row" span={12}>
-            <p>{translate('Sub Total')} :</p>
-          </Col>
-
-          <Col className="gutter-row" span={12}>
-            <p>
-              {moneyFormatter({ amount: currentErp.subTotal, currency_code: currentErp.currency })}
-            </p>
-          </Col>
-          <Col className="gutter-row" span={12}>
-            <p>
-              {translate('Tax Total')} ({currentErp.taxRate} %) :
-            </p>
-          </Col>
-          <Col className="gutter-row" span={12}>
-            <p>
-              {moneyFormatter({ amount: currentErp.taxTotal, currency_code: currentErp.currency })}
-            </p>
-          </Col>
-          <Col className="gutter-row" span={12}>
-            <p>{translate('Total')} :</p>
-          </Col>
-          <Col className="gutter-row" span={12}>
-            <p>
-              {moneyFormatter({ amount: currentErp.total, currency_code: currentErp.currency })}
-            </p>
-          </Col>
-        </Row>
-      </div>
     </>
   );
 }

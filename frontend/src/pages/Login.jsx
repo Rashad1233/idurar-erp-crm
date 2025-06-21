@@ -15,17 +15,23 @@ import AuthModule from '@/modules/AuthModule';
 
 const LoginPage = () => {
   const translate = useLanguage();
-  const { isLoading, isSuccess } = useSelector(selectAuth);
-  const navigate = useNavigate();
-  // const size = useSize();
-
+  const { isLoading, isSuccess } = useSelector(selectAuth);  const navigate = useNavigate();
   const dispatch = useDispatch();
+  // const size = useSize();
+  
   const onFinish = (values) => {
+    // Using Ant Design's Form, we don't need event.preventDefault()
     dispatch(login({ loginData: values }));
   };
 
   useEffect(() => {
-    if (isSuccess) navigate('/');
+    // Redirect only if we have a successful login
+    if (isSuccess) {
+      const auth = JSON.parse(window.localStorage.getItem('auth') || '{}');
+      if (auth.isLoggedIn && auth.current?.token) {
+        navigate('/');
+      }
+    }
   }, [isSuccess]);
 
   const FormContainer = () => {

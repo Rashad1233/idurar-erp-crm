@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Form, Button } from 'antd';
+import { Form, Button, message } from 'antd';
 
 import { useSelector, useDispatch } from 'react-redux';
 import { erp } from '@/redux/erp/actions';
@@ -11,6 +11,7 @@ import Loading from '@/components/Loading';
 import PaymentForm from '@/forms/PaymentForm';
 import { useNavigate } from 'react-router-dom';
 import calculate from '@/utils/calculate';
+import { extractUUID } from '@/utils/entityUtils';
 
 export default function RecordPayment({ config }) {
   const navigate = useNavigate();
@@ -20,6 +21,8 @@ export default function RecordPayment({ config }) {
   const dispatch = useDispatch();
 
   const { isLoading, isSuccess, current: currentInvoice } = useSelector(selectRecordPaymentItem);
+  
+  console.log('RecordPayment component - currentInvoice:', currentInvoice);
 
   const [form] = Form.useForm();
 
@@ -30,6 +33,7 @@ export default function RecordPayment({ config }) {
       setMaxAmount(calculate.sub(calculate.sub(total, discount), credit));
     }
   }, [currentInvoice]);
+  
   useEffect(() => {
     if (isSuccess) {
       form.resetFields();
@@ -38,18 +42,52 @@ export default function RecordPayment({ config }) {
       navigate(`/${entity}/`);
     }
   }, [isSuccess]);
-
+  
   const onSubmit = (fieldsValue) => {
     if (currentInvoice) {
-      const { _id: invoice } = currentInvoice;
-      const client = currentInvoice.client && currentInvoice.client._id;
+      console.log('Processing invoice payment:', currentInvoice);
+      
+      // Get invoice ID
+      const invoice = currentInvoice.id || currentInvoice._id;
+      
+      // Extract client ID safely
+      let client = null;
+      
+      // Try different places where client ID might be stored
+      if (currentInvoice.client) {
+        client = extractUUID(currentInvoice.client);
+      }
+      
+      if (!client && currentInvoice.clientId) {
+        client = extractUUID(currentInvoice.clientId);
+      }
+      
+      console.log('Extracted client ID:', client);
+      
+      if (!client) {
+        console.error('No valid client ID found in the invoice!');
+        message.error('Client information is missing or invalid. Cannot record payment.');
+        return;
+      }
+      
+      // Ensure we're sending only the string IDs
       fieldsValue = {
         ...fieldsValue,
-        invoice,
-        client,
+        invoice: typeof invoice === 'string' ? invoice : String(invoice),
+        client
       };
+      
+      console.log('Recording payment with data:', fieldsValue);
     }
-
+    
+    // Final validation check
+    if (!fieldsValue.client || typeof fieldsValue.client !== 'string' || 
+        !fieldsValue.client.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      message.error('Invalid client ID format. Cannot record payment.');
+      console.error('Invalid client ID format:', fieldsValue.client);
+      return;
+    }
+    
     dispatch(
       erp.recordPayment({
         entity: 'payment',

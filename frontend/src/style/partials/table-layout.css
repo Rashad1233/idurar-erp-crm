@@ -1,0 +1,92 @@
+/* Custom table layout optimizations */
+
+/* Make the table container use full width */
+.simple-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* Wide table container for data-heavy pages */
+.wide-table {
+  width: 100%;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: visible !important;
+  margin: 0;
+  padding: 0;
+}
+
+.wide-table .simple-table-wrapper {
+  width: 100%;
+  overflow-x: visible !important;
+}
+
+/* Optimize table cell padding for better space usage */
+.simple-table-wrapper .ant-table-tbody > tr > td {
+  padding: 8px 12px !important;
+}
+
+.simple-table-wrapper .ant-table-thead > tr > th {
+  padding: 8px 12px !important;
+}
+
+/* Ensure table uses full available width */
+.simple-table-wrapper .ant-table {
+  min-width: 100%;
+  table-layout: auto;
+}
+
+/* Optimize table layout for wide screens */
+@media (min-width: 1200px) {
+  .wide-layout .table-responsive {
+    padding: 0;
+  }
+  
+  .wide-layout .simple-table-wrapper {
+    padding: 0;
+    margin: 0;
+  }
+  
+  .wide-layout .ant-table-wrapper {
+    padding: 0;
+    margin: 0;
+  }
+}
+
+/* Wide layout for item master and other data-heavy pages */
+.wide-layout {
+  max-width: 98% !important;
+  padding: 10px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* Responsive table adjustments for wide layouts */
+@media (min-width: 1400px) {
+  .simple-table-wrapper .ant-table {
+    font-size: 13px;
+  }
+  
+  .simple-table-wrapper .ant-table-tbody > tr > td {
+    padding: 6px 10px !important;
+  }
+  
+  .simple-table-wrapper .ant-table-thead > tr > th {
+    padding: 6px 10px !important;
+  }
+}
+
+/* Improve tag display in narrow columns */
+.simple-table-wrapper .ant-tag {
+  margin: 0;
+  font-size: 11px;
+  padding: 1px 6px;
+  line-height: 16px;
+}
+
+/* Better ellipsis handling */
+.simple-table-wrapper .ant-table-cell .ant-typography {
+  margin-bottom: 0;
+}

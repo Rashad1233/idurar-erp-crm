@@ -1,5 +1,6 @@
 import * as actionTypes from './types';
 import { request } from '@/request';
+import { ensureEntityIds } from '@/utils/entityUtils';
 
 export const crud = {
   resetState:
@@ -67,8 +68,7 @@ export const crud = {
           payload: null,
         });
       }
-    },
-  create:
+    },  create:
     ({ entity, jsonData, withUpload = false }) =>
     async (dispatch) => {
       dispatch({
@@ -76,11 +76,15 @@ export const crud = {
         keyState: 'create',
         payload: null,
       });
+      
+      // Ensure entity references are valid UUIDs
+      const processedData = ensureEntityIds(jsonData);
+      
       let data = null;
       if (withUpload) {
-        data = await request.createAndUpload({ entity, jsonData });
+        data = await request.createAndUpload({ entity, jsonData: processedData });
       } else {
-        data = await request.create({ entity, jsonData });
+        data = await request.create({ entity, jsonData: processedData });
       }
 
       if (data.success === true) {
@@ -130,8 +134,7 @@ export const crud = {
           payload: null,
         });
       }
-    },
-  update:
+    },  update:
     ({ entity, id, jsonData, withUpload = false }) =>
     async (dispatch) => {
       dispatch({
@@ -140,12 +143,15 @@ export const crud = {
         payload: null,
       });
 
+      // Ensure entity references are valid UUIDs
+      const processedData = ensureEntityIds(jsonData);
+      
       let data = null;
 
       if (withUpload) {
-        data = await request.updateAndUpload({ entity, id, jsonData });
+        data = await request.updateAndUpload({ entity, id, jsonData: processedData });
       } else {
-        data = await request.update({ entity, id, jsonData });
+        data = await request.update({ entity, id, jsonData: processedData });
       }
 
       if (data.success === true) {

@@ -1,0 +1,756 @@
+import React, { useState, useEffect } from 'react';
+import apiClient from '../api/axiosConfig';
+import unspscService from '../services/unspscService';
+import { UnspscAiSearchWithFavorites } from '../components/UnspscAiSearch';
+import UnspscSimpleInput from '../components/UnspscSimpleInput/UnspscSimpleInput';
+import './CreateItemMasterForm.css';
+
+const initialState = {
+  itemNumber: '',
+  shortDescription: '',
+  longDescription: '',
+  standardDescription: '',
+  manufacturerName: '',
+  manufacturerPartNumber: '',
+  equipmentCategory: '',
+  equipmentSubCategory: '',
+  unspscCodeId: '',
+  uom: '',
+  equipmentTag: '',
+  serialNumber: 'N',
+  criticality: 'NO',
+  stockItem: 'N',
+  plannedStock: 'N',
+};
+
+export default function CreateItemMasterForm({ onSuccess }) {
+  const [form, setForm] = useState(initialState);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+  
+  // UNSPSC hierarchical data
+  const [segments, setSegments] = useState([]);
+  const [families, setFamilies] = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [commodities, setCommodities] = useState([]);
+  
+  // Selected UNSPSC values
+  const [selectedSegment, setSelectedSegment] = useState('');
+  const [selectedFamily, setSelectedFamily] = useState('');
+  const [selectedClass, setSelectedClass] = useState('');
+  const [selectedCommodity, setSelectedCommodity] = useState('');
+  // UNSPSC search
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [searchTimeout, setSearchTimeout] = useState(null);
+
+  // Units of measure common in ERP systems
+  const unitsOfMeasure = ['EA', 'PCS', 'KG', 'G', 'L', 'ML', 'M', 'CM', 'MM', 'BOX', 'CTN', 'DZ', 'PR', 'SET'];  useEffect(() => {
+    // Generate random item number
+    generateItemNumber();
+    
+    // Fetch UNSPSC segments (top level)
+    fetchUnspscSegments();
+  }, []);
+    const generateItemNumber = () => {
+    // Generate a random alphanumeric prefix (2 letters)
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const prefix = 
+      letters.charAt(Math.floor(Math.random() * letters.length)) + 
+      letters.charAt(Math.floor(Math.random() * letters.length));
+    
+    // Generate a random 6-digit number
+    const randomNumber = Math.floor(Math.random() * 900000) + 100000;
+    
+    // Format: XX-123456
+    const itemNumber = `${prefix}-${randomNumber}`;
+    
+    setForm(prevForm => ({
+      ...prevForm,
+      itemNumber
+    }));
+  };  const fetchUnspscSegments = async () => {
+    try {
+      const response = await unspscService.getCodesByLevel('SEGMENT');
+      if (response.success) {
+        setSegments(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching UNSPSC segments:', error);
+      setError('Error loading UNSPSC segments. Please try again.');
+    }  };
+  const handleSegmentSelect = async (segment) => {
+    setSelectedSegment(segment);
+    setSelectedFamily('');
+    setSelectedClass('');
+    setSelectedCommodity('');
+    setForm(prevForm => ({
+      ...prevForm,
+      unspscCodeId: ''
+    }));
+    
+    try {
+      const response = await unspscService.getFamiliesBySegment(segment);
+      if (response.success) {
+        setFamilies(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching UNSPSC families:', error);
+      setError('Error loading UNSPSC families. Please try again.');
+    }
+  };
+
+  const handleFamilySelect = async (family) => {
+    setSelectedFamily(family);
+    setSelectedClass('');
+    setSelectedCommodity('');
+    setForm(prevForm => ({
+      ...prevForm,
+      unspscCodeId: ''
+    }));
+    
+    // Fetch classes for the selected family
+    try {
+      const response = await apiClient.get(`/unspsc/classes/${selectedSegment}/${family}`);
+      setClasses(response.data);
+      return Promise.resolve();
+    } catch (error) {
+      console.error('Error fetching UNSPSC classes:', error);
+      // Fallback data
+      setClasses([
+        { id: 'c1', code: '31151500', title: 'Bearings', segment: '31', family: '15', class: '15' },
+        { id: 'c2', code: '43211500', title: 'Computers', segment: '43', family: '21', class: '15' }
+      ]);
+      return Promise.resolve();
+    }
+  };
+  const handleClassSelect = async (classCode) => {
+    setSelectedClass(classCode);
+    setSelectedCommodity('');
+    setForm(prevForm => ({
+      ...prevForm,
+      unspscCodeId: ''
+    }));
+    
+    // Fetch commodities for the selected class
+    try {
+      const response = await apiClient.get(`/unspsc/commodities/${selectedSegment}/${selectedFamily}/${classCode}`);
+      setCommodities(response.data);
+      return Promise.resolve();
+    } catch (error) {
+      console.error('Error fetching UNSPSC commodities:', error);
+      // Fallback data
+      setCommodities([
+        { id: 'co1', code: '31151501', title: 'Ball bearings', segment: '31', family: '15', class: '15', commodity: '01' },
+        { id: 'co2', code: '43211501', title: 'Desktop computers', segment: '43', family: '21', class: '15', commodity: '01' }
+      ]);
+      return Promise.resolve();
+    }
+  };  const handleCommoditySelect = async (commodityId) => {
+    setSelectedCommodity(commodityId);
+    
+    // If commodityId looks like a code (numbers only), try to get the UUID
+    let unspscUuid = commodityId;
+    if (commodityId && /^\d+$/.test(commodityId)) {
+      unspscUuid = await getUnspscUuidByCode(commodityId);
+    }
+    
+    setForm(prevForm => ({
+      ...prevForm,
+      unspscCodeId: unspscUuid,
+      unspscCode: commodityId  // Store the code for display
+    }));
+  };  // Helper function to get UUID for a UNSPSC code
+  const getUnspscUuidByCode = async (code) => {
+    try {
+      const response = await apiClient.get(`/unspsc/code/${code}`);
+      if (response.data?.id) {
+        return response.data.id;
+      } else {
+        console.warn(`No UNSPSC code found in database with code: ${code}`);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error getting UNSPSC UUID for code:', code, error);
+      return null;
+    }
+  };
+  const handleSearchResultSelect = async (result) => {
+    // Close search results
+    setShowSearchResults(false);
+    setSearchQuery('');
+    
+    console.log('Received search result for selection:', result);
+    
+    try {
+      // Extract the components from the UNSPSC code
+      const segment = result.segment || result.code?.substring(0, 2);
+      const family = result.family || result.code?.substring(2, 4);
+      const classCode = result.class || result.code?.substring(4, 6);
+      const commodity = result.commodity || result.code?.substring(6, 8);
+      
+      // Prioritize the UUID (result.id) over the code
+      let unspscId = result.id;
+      
+      // If we don't have an ID but have a code, try to get the UUID
+      if (!unspscId && result.code) {
+        try {
+          unspscId = await getUnspscUuidByCode(result.code);
+          console.log('Retrieved UUID for code:', result.code, unspscId);
+        } catch (error) {
+          console.warn(`No UUID found for code ${result.code}. This might be a non-existent UNSPSC code.`);
+          // Continue without a UUID - we'll just store the code itself
+        }
+      }
+      
+      // If we have titles available directly from the result (from favorites), use them
+      // Otherwise they'll be loaded from API calls
+      const segmentTitle = result.segmentTitle;
+      const familyTitle = result.familyTitle;
+      const classTitle = result.classTitle;
+      const commodityTitle = result.commodityTitle;
+      
+      console.log('Hierarchy titles available:', {
+        segmentTitle,
+        familyTitle,
+        classTitle,
+        commodityTitle
+      });
+        // Store the UNSPSC code and title directly in the form, even if we don't have hierarchy data
+      if (result.code && result.title) {
+        setForm(prevForm => ({
+          ...prevForm,
+          unspscCode: result.code,
+          unspscDescription: result.title
+        }));
+      }
+      
+      // Check if this is a code that exists in the database
+      const codeExists = await getUnspscUuidByCode(result.code);
+      
+      if (codeExists) {
+        // If code exists in database, use standard hierarchy selection process
+        try {
+          // Only fetch and set the hierarchy if the segments/families/classes aren't already set
+          if (segment && segment !== selectedSegment) {
+            await handleSegmentSelect(segment);
+          }
+          
+          if (family && (family !== selectedFamily || !selectedFamily)) {
+            if (segment && segment === selectedSegment) {
+              await handleFamilySelect(family);
+            }
+          }
+          
+          if (classCode && (classCode !== selectedClass || !selectedClass)) {
+            if (segment && family && segment === selectedSegment && family === selectedFamily) {
+              await handleClassSelect(classCode);
+            }
+          }
+        } catch (hierarchyError) {
+          // If hierarchy fetching fails, still allow the code to be used
+          console.warn('Error fetching hierarchy data, continuing with just the code:', hierarchyError);
+          message.warning('This UNSPSC code exists in your favorites but its hierarchy information is not available in the database.');
+        }
+      } else {
+        // If code doesn't exist in database, try to get partial hierarchy information
+        console.log('Code not found in database, trying to get partial hierarchy information');
+        message.info('This UNSPSC code from your favorites is not in the database. Limited hierarchy information may be available.');
+        
+        // If we have titles in the result (from favorites), use those directly
+        if (result.segmentTitle || result.familyTitle || result.classTitle || result.commodityTitle) {
+          console.log('Using hierarchy titles from favorites');
+        } else {
+          // Try to fetch any available partial hierarchy information
+          const partialHierarchy = await fetchPartialHierarchyTitles(result.code);
+          console.log('Partial hierarchy information:', partialHierarchy);
+          
+          // Store whatever hierarchy information we have
+          if (partialHierarchy.segmentTitle) {
+            setSelectedSegment(segment || '');
+          }
+          
+          if (partialHierarchy.familyTitle) {
+            setSelectedFamily(family || '');
+          }
+          
+          if (partialHierarchy.classTitle) {
+            setSelectedClass(classCode || '');
+          }
+          
+          if (partialHierarchy.commodityTitle) {
+            setSelectedCommodity(commodity || '');
+          }
+        }
+      }
+        if (commodity && result.level === 'COMMODITY' && unspscId) {
+        // If we have an ID, use the normal commodity selection process
+        handleCommoditySelect(unspscId);
+      } else if (unspscId) {
+        // For non-commodity levels or when we have a UUID, set the unspscCodeId directly
+        setForm(prevForm => ({
+          ...prevForm,
+          unspscCodeId: unspscId,
+          unspscCode: result.code,  // Store the code for display purposes
+          unspscDescription: result.title || prevForm.unspscDescription  // Keep the description if available
+        }));
+      } else if (result.code) {
+        // If no UUID is found (code doesn't exist in database), still use the code 
+        // but don't set the UUID which might cause validation issues
+        setForm(prevForm => ({
+          ...prevForm,
+          unspscCode: result.code,
+          unspscDescription: result.title || prevForm.unspscDescription
+        }));
+        console.log('Using code without UUID (not found in database):', result.code);
+      }
+    } catch (error) {
+      console.error('Error selecting UNSPSC from search:', error);
+      setError('Failed to select UNSPSC code. Please try again.');
+    }
+  };
+
+  const handleSearch = (query) => {
+    setSearchQuery(query);
+    setShowSearchResults(false);
+    
+    // Debounce search
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+    
+    setSearchTimeout(setTimeout(() => {
+      performSearch(query);
+    }, 300));
+  };
+
+  const performSearch = async (query) => {
+    if (!query || query.trim().length < 3) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+    
+    setIsSearching(true);
+    
+    try {
+      const response = await unspscService.searchCodes(query);
+      if (response.success) {
+        setSearchResults(response.data);
+        setShowSearchResults(true);
+      }
+    } catch (error) {
+      console.error('Error searching UNSPSC codes:', error);
+      setError('Error searching UNSPSC codes. Please try again.');
+    } finally {
+      setIsSearching(false);
+    }
+  };  const handleFormSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);    setError('');
+    setSuccess(false);
+    
+    try {      // Prepare form data with proper handling of unspscCodeId
+      const formData = {
+        ...form,
+        // Only set unspscCodeId to null if it's empty, otherwise keep the value
+        unspscCodeId: form.unspscCodeId || null
+      };
+        // Debug logging to see what's being sent
+      console.log('=== FORM SUBMISSION DEBUG ===');
+      console.log('Original form data:', JSON.stringify(form, null, 2));
+      console.log('Prepared form data:', JSON.stringify(formData, null, 2));
+      console.log('API endpoint: /item');
+      console.log('=== END FORM DEBUG ===');
+      
+      // Submit form data to the server
+      await apiClient.post('/item', formData);
+      setSuccess(true);
+      // Reset form
+      setForm(initialState);
+      // Generate new item number
+      generateItemNumber();
+      // Call onSuccess prop
+      if (onSuccess) onSuccess();    } catch (error) {      // Enhanced error logging to debug the 400 Bad Request
+      console.error('=== DETAILED ERROR DEBUG ===');
+      console.error('Full error object:', error);
+      console.error('Error message:', error.message);
+      console.error('Error response:', error.response);
+      
+      if (error.response) {
+        console.error('Response status:', error.response.status);
+        console.error('Response status text:', error.response.statusText);
+        console.error('Response data:', JSON.stringify(error.response.data, null, 2));
+        console.error('Response headers:', error.response.headers);
+      }
+      
+      if (error.request) {
+        console.error('Request data:', error.request);
+      }
+      
+      console.error('Error config:', JSON.stringify(error.config, null, 2));      console.error('Form data being sent:', JSON.stringify(form, null, 2));
+      
+      // formData might not be available in catch block, so recreate it for logging
+      const debugFormData = {
+        ...form,
+        unspscCodeId: form.unspscCodeId || null
+      };
+      console.error('Prepared form data:', JSON.stringify(debugFormData, null, 2));
+      console.error('=== END ERROR DEBUG ===');
+      
+      // Set user-friendly error message
+      let errorMessage = 'Error creating item master. Please try again.';
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.status === 400) {
+        errorMessage = 'Invalid form data. Please check all fields.';
+      } else if (error.response?.status === 401) {
+        errorMessage = 'Authentication required. Please log in.';
+      }
+      
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Helper function to fetch partial hierarchy title information for a UNSPSC code
+  const fetchPartialHierarchyTitles = async (code) => {
+    if (!code || code.length !== 8) {
+      return {
+        segmentTitle: null,
+        familyTitle: null,
+        classTitle: null,
+        commodityTitle: null
+      };
+    }
+    
+    const segmentCode = code.substring(0, 2) + '000000';
+    const familyCode = code.substring(0, 4) + '0000';
+    const classCode = code.substring(0, 6) + '00';
+    
+    try {
+      // Try to get segment title
+      let segmentTitle = null;
+      let familyTitle = null;
+      let classTitle = null;
+      
+      try {
+        const segmentResponse = await apiClient.get(`/unspsc/code/${segmentCode}`);
+        segmentTitle = segmentResponse.data?.title || null;
+      } catch (error) {
+        console.warn(`Segment ${segmentCode} not found in database`);
+      }
+      
+      // Try to get family title
+      try {
+        const familyResponse = await apiClient.get(`/unspsc/code/${familyCode}`);
+        familyTitle = familyResponse.data?.title || null;
+      } catch (error) {
+        console.warn(`Family ${familyCode} not found in database`);
+      }
+      
+      // Try to get class title
+      try {
+        const classResponse = await apiClient.get(`/unspsc/code/${classCode}`);
+        classTitle = classResponse.data?.title || null;
+      } catch (error) {
+        console.warn(`Class ${classCode} not found in database`);
+      }
+      
+      // Try to get commodity title
+      let commodityTitle = null;
+      try {
+        const commodityResponse = await apiClient.get(`/unspsc/code/${code}`);
+        commodityTitle = commodityResponse.data?.title || null;
+      } catch (error) {
+        console.warn(`Commodity ${code} not found in database`);
+      }
+      
+      return {
+        segmentTitle,
+        familyTitle,
+        classTitle,
+        commodityTitle
+      };
+    } catch (error) {
+      console.error('Error fetching partial hierarchy titles:', error);
+      return {
+        segmentTitle: null,
+        familyTitle: null,
+        classTitle: null,
+        commodityTitle: null
+      };
+    }
+  };
+
+  return (
+    <div className="create-item-master-form">
+      <h2>Create Item Master</h2>
+      {error && <div className="error-message">{error}</div>}
+      {success && <div className="success-message">Item master created successfully!</div>}
+      <form onSubmit={handleFormSubmit}>        <div className="form-group">
+          <label>Item Number</label>
+          <div className="input-with-button">
+            <input
+              type="text"
+              value={form.itemNumber}
+              onChange={(e) => setForm({ ...form, itemNumber: e.target.value })}
+              required
+              className="read-only-input"
+              readOnly
+            />
+            <button 
+              type="button" 
+              onClick={generateItemNumber} 
+              className="regenerate-button"
+              title="Generate new item number"
+            >
+              ↻
+            </button>
+          </div>
+        </div>        <div className="form-group">
+          <label>Short Description *</label>
+          <input
+            type="text"
+            value={form.shortDescription}
+            onChange={(e) => setForm({ ...form, shortDescription: e.target.value })}
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Long Description</label>
+          <textarea
+            value={form.longDescription}
+            onChange={(e) => setForm({ ...form, longDescription: e.target.value })}
+            rows="3"
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Standard Description *</label>
+          <input
+            type="text"
+            value={form.standardDescription}
+            onChange={(e) => setForm({ ...form, standardDescription: e.target.value })}
+            required
+          />
+        </div><div className="form-group">
+          <label>UNSPSC Classification</label>
+          <div className="unspsc-section">            <div className="ai-search-container">
+              <h4>AI-Powered UNSPSC Search & Favorites</h4>
+              <p className="search-help-text">
+                Describe the item to find the appropriate UNSPSC code or select from your favorites
+              </p>
+              <UnspscAiSearchWithFavorites onSelect={handleSearchResultSelect} />
+            </div>              <div className="manual-selection">              <h4>Manual UNSPSC Input</h4>
+              
+              {/* Direct Code Input */}
+              <div className="direct-input-section">
+                <label>Enter UNSPSC code directly:</label>
+                <div className="unspsc-selector">
+                <UnspscSimpleInput 
+                  value={form.unspscCode}
+                  onChange={(code, data) => {
+                    setForm({
+                      ...form,
+                      unspscCode: code,
+                      unspscCodeId: data?.id || ''
+                    });
+                  }}
+                  placeholder="Enter code (e.g., 40141607) or path (e.g., 40/14/16/07)"
+                />
+                      setSelectedClass(selectedData.class);
+                    }
+                    if (selectedData.code) {
+                      setSelectedCommodity(selectedData.code);
+                      
+                      // Get the UUID for the UNSPSC code
+                      let unspscId = selectedData.id;
+                      if (!unspscId && selectedData.code) {
+                        unspscId = await getUnspscUuidByCode(selectedData.code);
+                      }
+                      
+                      setForm(prevForm => ({
+                        ...prevForm,
+                        unspscCodeId: unspscId,  // Use UUID, not code
+                        unspscCode: selectedData.code  // Store code for display
+                      }));
+                    }
+                    
+                    // Call the original handler for backwards compatibility
+                    handleSearchResultSelect(selectedData);
+                  }}                  showLevel="COMMODITY"
+                />
+                </div>
+              </div>
+            </div>
+            {form.unspscCode && (
+              <div className="selected-unspsc-path">
+                <label>Selected Classification Path:</label>
+                <div>
+                  {selectedSegment && (segments.find(s => s.segment === selectedSegment)?.title || 
+                    (form.unspscCode && `Segment ${form.unspscCode.substring(0, 2)}`)) }
+                  {selectedFamily && ` > ${families.find(f => f.family === selectedFamily)?.title || 
+                    (form.unspscCode && `Family ${form.unspscCode.substring(2, 4)}`)}`}
+                  {selectedClass && ` > ${classes.find(c => c.class === selectedClass)?.title || 
+                    (form.unspscCode && `Class ${form.unspscCode.substring(4, 6)}`)}`}
+                  {selectedCommodity && ` > ${commodities.find(c => c.id === selectedCommodity || c.code === selectedCommodity)?.title || 
+                    (form.unspscCode && `Commodity ${form.unspscCode.substring(6, 8)}`)}`}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>        <div className="form-group">
+          <label>Unit of Measure *</label>
+          <select
+            value={form.uom}
+            onChange={(e) => setForm({ ...form, uom: e.target.value })}
+            required
+          >
+            <option value="">Select UOM</option>
+            {unitsOfMeasure.map(uom => (
+              <option key={uom} value={uom}>{uom}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label>Manufacturer Name *</label>
+          <input
+            type="text"
+            value={form.manufacturerName}
+            onChange={(e) => setForm({ ...form, manufacturerName: e.target.value })}
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Manufacturer Part Number *</label>
+          <input
+            type="text"
+            value={form.manufacturerPartNumber}
+            onChange={(e) => setForm({ ...form, manufacturerPartNumber: e.target.value })}
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Equipment Category *</label>
+          <input
+            type="text"
+            value={form.equipmentCategory}
+            onChange={(e) => setForm({ ...form, equipmentCategory: e.target.value })}
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Equipment Sub Category</label>
+          <input
+            type="text"
+            value={form.equipmentSubCategory}
+            onChange={(e) => setForm({ ...form, equipmentSubCategory: e.target.value })}
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Equipment Tag</label>
+          <input
+            type="text"
+            value={form.equipmentTag}
+            onChange={(e) => setForm({ ...form, equipmentTag: e.target.value })}
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Serial Number</label>
+          <select
+            value={form.serialNumber}
+            onChange={(e) => setForm({ ...form, serialNumber: e.target.value })}
+          >
+            <option value="N">No</option>
+            <option value="Y">Yes</option>
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label>Criticality</label>
+          <select
+            value={form.criticality}
+            onChange={(e) => setForm({ ...form, criticality: e.target.value })}
+          >
+            <option value="NO">No</option>
+            <option value="LOW">Low</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="HIGH">High</option>
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label>Stock Item</label>
+          <select
+            value={form.stockItem}
+            onChange={(e) => setForm({ ...form, stockItem: e.target.value })}
+          >
+            <option value="N">No</option>
+            <option value="Y">Yes</option>
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label>Planned Stock</label>
+          <select
+            value={form.plannedStock}
+            onChange={(e) => setForm({ ...form, plannedStock: e.target.value })}
+          >
+            <option value="N">No</option>
+            <option value="Y">Yes</option>
+          </select>
+        </div>
+        <div className="form-actions">
+          <button type="submit" disabled={loading}>
+            {loading ? 'Creating...' : 'Create Item Master'}
+          </button>
+        </div>
+      </form>      <div className="search-section">
+        <h3>Search UNSPSC</h3>
+        <div className="search-container">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => handleSearch(e.target.value)}
+            placeholder="Search UNSPSC (min 3 characters)"
+            className="search-input"
+          />
+          {isSearching && <div className="search-spinner">Searching...</div>}
+          {showSearchResults && (
+            <div className="search-results">
+              {searchResults.length === 0 ? (
+                <div className="search-result-item">No results found</div>
+              ) : (
+                searchResults.map(result => (
+                  <div 
+                    key={result.code} 
+                    className="search-result-item"
+                    onClick={() => handleSearchResultSelect(result)}
+                  >
+                    <div>
+                      <span className="search-result-code">{result.code}</span>
+                      {result.title}
+                    </div>
+                    <div className="search-result-level">Level: {result.level}</div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

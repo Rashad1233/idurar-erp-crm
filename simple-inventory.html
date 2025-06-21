@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Inventory Management</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f7f9fc;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        .form-container {
+            flex: 1;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .items-container {
+            flex: 1;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #34495e;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .required {
+            color: red;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .unspsc-search {
+            position: relative;
+        }
+        .unspsc-results {
+            position: absolute;
+            width: 100%;
+            max-height: 200px;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #ddd;
+            border-top: none;
+            z-index: 10;
+            display: none;
+        }
+        .unspsc-item {
+            padding: 8px;
+            cursor: pointer;
+        }
+        .unspsc-item:hover {
+            background-color: #f0f0f0;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: #f0f0f0;
+            border: 1px solid #ddd;
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+            margin-right: 5px;
+        }
+        .tab.active {
+            background-color: white;
+            font-weight: bold;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .schema-container {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Simple Inventory Management</h1>
+
+    <div class="tabs">
+        <div class="tab active" data-tab="create">Create Item</div>
+        <div class="tab" data-tab="list">View Items</div>
+        <div class="tab" data-tab="schema">Table Schema</div>
+    </div>
+
+    <div class="tab-content active" id="create-tab">
+        <div id="success-message" class="success"></div>
+        <div id="error-message" class="error"></div>
+        
+        <div class="form-container">
+            <h2>Create New Item</h2>
+            <form id="item-form">
+                <div class="form-group">
+                    <label for="itemNumber">Item Number <span class="required">*</span></label>
+                    <input type="text" id="itemNumber" name="itemNumber" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="itemDescription">Item Description <span class="required">*</span></label>
+                    <input type="text" id="itemDescription" name="itemDescription" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="standardDescription">Standard Description <span class="required">*</span></label>
+                    <textarea id="standardDescription" name="standardDescription" rows="3" required></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="unspscCode">UNSPSC Code <span class="required">*</span></label>
+                    <div class="unspsc-search">
+                        <input type="text" id="unspscCode" name="unspscCode" required>
+                        <div id="unspsc-results" class="unspsc-results"></div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="uom">Unit of Measure</label>
+                    <select id="uom" name="uom">
+                        <option value="EA">Each (EA)</option>
+                        <option value="CS">Case (CS)</option>
+                        <option value="BX">Box (BX)</option>
+                        <option value="PK">Pack (PK)</option>
+                        <option value="DZ">Dozen (DZ)</option>
+                        <option value="LB">Pound (LB)</option>
+                        <option value="FT">Foot (FT)</option>
+                        <option value="IN">Inch (IN)</option>
+                        <option value="CM">Centimeter (CM)</option>
+                        <option value="M">Meter (M)</option>
+                        <option value="KG">Kilogram (KG)</option>
+                        <option value="L">Liter (L)</option>
+                        <option value="ML">Milliliter (ML)</option>
+                        <option value="GL">Gallon (GL)</option>
+                        <option value="OZ">Ounce (OZ)</option>
+                        <option value="PR">Pair (PR)</option>
+                        <option value="RL">Roll (RL)</option>
+                        <option value="ST">Set (ST)</option>
+                        <option value="HR">Hour (HR)</option>
+                        <option value="JB">Job (JB)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="active">Status</label>
+                    <select id="active" name="active">
+                        <option value="true">Active</option>
+                        <option value="false">Inactive</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="createdBy">Created By</label>
+                    <input type="text" id="createdBy" name="createdBy" value="admin">
+                </div>
+                
+                <button type="submit" id="submit-btn">Create Item</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="tab-content" id="list-tab">
+        <div class="items-container">
+            <h2>Existing Items</h2>
+            <button id="refresh-items">Refresh List</button>
+            <div id="items-list">
+                <table id="items-table">
+                    <thead>
+                        <tr>
+                            <th>Item Number</th>
+                            <th>Description</th>
+                            <th>UNSPSC</th>
+                            <th>UOM</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                        </tr>
+                    </thead>
+                    <tbody id="items-body">
+                        <tr>
+                            <td colspan="6">Loading items...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-content" id="schema-tab">
+        <div class="schema-container">
+            <h2>ItemMasters Table Schema</h2>
+            <button id="refresh-schema">Refresh Schema</button>
+            <div id="schema-data">
+                <table id="schema-table">
+                    <thead>
+                        <tr>
+                            <th>Column Name</th>
+                            <th>Data Type</th>
+                            <th>Nullable</th>
+                            <th>Default</th>
+                        </tr>
+                    </thead>
+                    <tbody id="schema-body">
+                        <tr>
+                            <td colspan="4">Loading schema...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Base URL for the API
+        const API_URL = 'http://localhost:5555/api/simple-inventory';
+        
+        // DOM Elements
+        const itemForm = document.getElementById('item-form');
+        const successMessage = document.getElementById('success-message');
+        const errorMessage = document.getElementById('error-message');
+        const itemsBody = document.getElementById('items-body');
+        const refreshItemsButton = document.getElementById('refresh-items');
+        const schemaBody = document.getElementById('schema-body');
+        const refreshSchemaButton = document.getElementById('refresh-schema');
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+        
+        // Tab functionality
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Remove active class from all tabs and contents
+                tabs.forEach(t => t.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+                
+                // Add active class to clicked tab and corresponding content
+                tab.classList.add('active');
+                const tabId = `${tab.dataset.tab}-tab`;
+                document.getElementById(tabId).classList.add('active');
+                
+                // Load data for the active tab
+                if (tab.dataset.tab === 'list') {
+                    fetchItems();
+                } else if (tab.dataset.tab === 'schema') {
+                    fetchSchema();
+                }
+            });
+        });
+        
+        // Form submission
+        itemForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Hide previous messages
+            successMessage.style.display = 'none';
+            errorMessage.style.display = 'none';
+            
+            // Get form data
+            const formData = new FormData(itemForm);
+            const itemData = {};
+            
+            // Convert FormData to JSON object
+            for (const [key, value] of formData.entries()) {
+                // Convert 'true'/'false' strings to boolean for the 'active' field
+                if (key === 'active') {
+                    itemData[key] = value === 'true';
+                } else {
+                    itemData[key] = value;
+                }
+            }
+            
+            try {
+                // Send POST request to create item
+                const response = await fetch(`${API_URL}/create`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(itemData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Show success message
+                    successMessage.textContent = result.message || 'Item created successfully!';
+                    successMessage.style.display = 'block';
+                    
+                    // Reset form
+                    itemForm.reset();
+                    
+                    // Refresh items list if it's visible
+                    if (document.getElementById('list-tab').classList.contains('active')) {
+                        fetchItems();
+                    }
+                } else {
+                    // Show error message
+                    errorMessage.textContent = result.message || 'Failed to create item';
+                    errorMessage.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error creating item:', error);
+                errorMessage.textContent = 'An error occurred while creating the item';
+                errorMessage.style.display = 'block';
+            }
+        });
+        
+        // Fetch items
+        async function fetchItems() {
+            try {
+                itemsBody.innerHTML = '<tr><td colspan="6">Loading items...</td></tr>';
+                
+                const response = await fetch(`${API_URL}/items`);
+                const result = await response.json();
+                
+                if (result.success && result.data.length > 0) {
+                    // Clear the loading message
+                    itemsBody.innerHTML = '';
+                    
+                    // Add items to the table
+                    result.data.forEach(item => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${item.itemNumber || '-'}</td>
+                            <td>${item.itemDescription || '-'}</td>
+                            <td>${item.unspscCode || '-'}</td>
+                            <td>${item.uom || '-'}</td>
+                            <td>${item.active ? 'Active' : 'Inactive'}</td>
+                            <td>${formatDate(item.createdAt)}</td>
+                        `;
+                        itemsBody.appendChild(row);
+                    });
+                } else {
+                    itemsBody.innerHTML = '<tr><td colspan="6">No items found</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error fetching items:', error);
+                itemsBody.innerHTML = '<tr><td colspan="6">Error loading items</td></tr>';
+            }
+        }
+        
+        // Fetch schema
+        async function fetchSchema() {
+            try {
+                schemaBody.innerHTML = '<tr><td colspan="4">Loading schema...</td></tr>';
+                
+                const response = await fetch(`${API_URL}/schema`);
+                const result = await response.json();
+                
+                if (result.success && result.data.length > 0) {
+                    // Clear the loading message
+                    schemaBody.innerHTML = '';
+                    
+                    // Add schema data to the table
+                    result.data.forEach(column => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${column.column_name}</td>
+                            <td>${column.data_type}</td>
+                            <td>${column.is_nullable}</td>
+                            <td>${column.column_default || '-'}</td>
+                        `;
+                        schemaBody.appendChild(row);
+                    });
+                } else {
+                    schemaBody.innerHTML = '<tr><td colspan="4">No schema data found</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error fetching schema:', error);
+                schemaBody.innerHTML = '<tr><td colspan="4">Error loading schema</td></tr>';
+            }
+        }
+        
+        // Refresh buttons
+        refreshItemsButton.addEventListener('click', fetchItems);
+        refreshSchemaButton.addEventListener('click', fetchSchema);
+        
+        // Helper function to format date
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+        }
+        
+        // Initial data load
+        document.addEventListener('DOMContentLoaded', () => {
+            // Load items if the list tab is active by default
+            if (document.getElementById('list-tab').classList.contains('active')) {
+                fetchItems();
+            }
+            
+            // Load schema if the schema tab is active by default
+            if (document.getElementById('schema-tab').classList.contains('active')) {
+                fetchSchema();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 import useDebounce from '@/hooks/useDebounce';
 
@@ -15,56 +15,61 @@ function SearchItemComponent({ config, onRerender }) {
   let { entity, searchConfig } = config;
 
   const { displayLabels, searchFields, outputValue = '_id' } = searchConfig;
-
   const dispatch = useDispatch();
   const { crudContextAction } = useCrudContext();
-  const { panel, collapsedBox, readBox } = crudContextAction;
   const { result, isLoading, isSuccess } = useSelector(selectSearchedItems);
 
   const [selectOptions, setOptions] = useState([]);
   const [currentValue, setCurrentValue] = useState(undefined);
 
   const isSearching = useRef(false);
+  const previousOptions = useRef([]);
 
   const [searching, setSearching] = useState(false);
-
   const [valToSearch, setValToSearch] = useState('');
-  const [debouncedValue, setDebouncedValue] = useState('');
 
-  const [, cancel] = useDebounce(
-    () => {
-      setDebouncedValue(valToSearch);
-    },
-    500,
-    [valToSearch]
-  );
+  // Use a stable reference for debounced update
+  const debouncedUpdate = useCallback(() => {
+    if (!isSearching.current) return;
 
-  const labels = (optionField) => {
-    return displayLabels.map((x) => optionField[x]).join(' ');
-  };
+    if (isSuccess && JSON.stringify(result) !== JSON.stringify(previousOptions.current)) {
+      previousOptions.current = result;
+      setOptions(result);
+      setSearching(false);
+    } else if (!isSuccess) {
+      setSearching(false);
+      if (currentValue !== undefined) {
+        setCurrentValue(undefined);
+      }
+      if (selectOptions.length > 0) {
+        setOptions([]);
+      }
+    }
+  }, [isSuccess, result, currentValue, selectOptions]);
 
   useEffect(() => {
-    if (debouncedValue != '') {
-      const options = {
-        q: debouncedValue,
-        fields: searchFields,
-      };
-      dispatch(crud.search({ entity, options }));
-    }
+    debouncedUpdate();
+    
     return () => {
-      cancel();
+      isSearching.current = false;
     };
-  }, [debouncedValue]);
+  }, [debouncedUpdate]);
 
-  const onSearch = (searchText) => {
-    if (searchText && searchText != '') {
-      isSearching.current = true;
-      setSearching(true);
+  const onSearch = useCallback((searchText) => {
+    if (searchText.length < 1) {
       setOptions([]);
-      setCurrentValue(undefined);
-      setValToSearch(searchText);
+      return;
     }
-  };
+
+    isSearching.current = true;
+    setSearching(true);
+    setValToSearch(searchText);
+
+    dispatch(crud.search(entity, { 
+      question: searchText,
+      fields: searchFields
+    }));
+  }, [entity, searchFields, dispatch]);
 
   const onSelect = (data) => {
     const currentItem = result.find((item) => {
@@ -78,17 +83,10 @@ function SearchItemComponent({ config, onRerender }) {
     readBox.open();
     onRerender();
   };
-  useEffect(() => {
-    if (isSearching.current) {
-      if (isSuccess) {
-        setOptions(result);
-      } else {
-        setSearching(false);
-        setCurrentValue(undefined);
-        setOptions([]);
-      }
-    }
-  }, [isSuccess, result]);
+
+  const labels = (optionField) => {
+    return displayLabels.map((x) => optionField[x]).join(' ');
+  };
 
   return (
     <Select

@@ -11,6 +11,7 @@ import Navigation from '@/apps/Navigation/NavigationContainer';
 
 import HeaderContent from '@/apps/Header/HeaderContainer';
 import PageLoader from '@/components/PageLoader';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 import { settingsAction } from '@/redux/settings/actions';
 
@@ -32,14 +33,13 @@ export default function ErpCrmApp() {
   const { isMobile } = useResponsive();
 
   const dispatch = useDispatch();
-
   useLayoutEffect(() => {
     dispatch(settingsAction.list({ entity: 'setting' }));
   }, []);
 
   // const appSettings = useSelector(selectAppSettings);
 
-  const { isSuccess: settingIsloaded } = useSelector(selectSettings);
+  const { isSuccess: settingIsloaded, isLoading: settingsLoading } = useSelector(selectSettings);
 
   // useEffect(() => {
   //   const { loadDefaultLang } = storePersist.get('firstVisit');
@@ -48,7 +48,7 @@ export default function ErpCrmApp() {
   //   }
   // }, [appSettings]);
 
-  if (settingIsloaded)
+  if (settingIsloaded || !settingsLoading)
     return (
       <Layout hasSider>
         <Navigation />
@@ -58,12 +58,11 @@ export default function ErpCrmApp() {
             <HeaderContent />
             <Content
               style={{
-                margin: '40px auto 30px',
-                overflow: 'initial',
-                width: '100%',
-                padding: '0 25px',
-                maxWidth: 'none',
-              }}
+                margin: '40px auto 30px',              overflow: 'initial',
+              width: '100%',
+              padding: '0 25px',
+              maxWidth: 'none',
+            }}
             >
               <AppRouter />
             </Content>

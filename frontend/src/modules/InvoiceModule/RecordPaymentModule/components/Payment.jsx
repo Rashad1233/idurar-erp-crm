@@ -68,10 +68,9 @@ export default function Payment({ config, currentItem }) {
                 icon={<CloseCircleOutlined />}
               >
                 {translate('Cancel')}
-              </Button>,
-              <Button
+              </Button>,              <Button
                 key={`${uniqueId()}`}
-                onClick={() => navigate(`/invoice/read/${currentErp._id}`)}
+                onClick={() => navigate(`/invoice/read/${currentErp.id || currentErp._id}`)}
                 icon={<FileTextOutlined />}
               >
                 {translate('Show Invoice')}
@@ -92,10 +91,9 @@ export default function Payment({ config, currentItem }) {
           md={{ span: 10, order: 2, push: 2 }}
           lg={{ span: 10, order: 2, push: 4 }}
         >
-          <div className="space50"></div>
-          <Descriptions title={`${translate('Client')}  : ${currentErp.client.name}`} column={1}>
-            <Descriptions.Item label={translate('email')}>{client.email}</Descriptions.Item>
-            <Descriptions.Item label={translate('phone')}>{client.phone}</Descriptions.Item>
+          <div className="space50"></div>          <Descriptions title={`${translate('Client')}  : ${currentErp.client?.name || 'N/A'}`} column={1}>
+            <Descriptions.Item label={translate('email')}>{client?.email || 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label={translate('phone')}>{client?.phone || 'N/A'}</Descriptions.Item>
             <Divider dashed />
             <Descriptions.Item label={translate('payment status')}>
               <span>{currentErp.paymentStatus && translate(currentErp.paymentStatus)}</span>

@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Direct Item Creation Form</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            display: none;
+        }
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        .loading {
+            text-align: center;
+            margin-top: 20px;
+            display: none;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 2s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <h1>Direct Item Creation Form</h1>
+    <p><strong>Note:</strong> This form directly connects to the backend API, bypassing the React frontend.</p>
+    
+    <form id="itemForm">
+        <div class="form-group">
+            <label for="itemNumber">Item Number</label>
+            <input type="text" id="itemNumber" name="itemNumber" placeholder="Auto-generated if left blank">
+        </div>
+        
+        <div class="form-group">
+            <label for="shortDescription">Short Description (required)</label>
+            <input type="text" id="shortDescription" name="shortDescription" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="longDescription">Long Description</label>
+            <textarea id="longDescription" name="longDescription" rows="3"></textarea>
+        </div>
+        
+        <div class="form-group">
+            <label for="standardDescription">Standard Description</label>
+            <textarea id="standardDescription" name="standardDescription" rows="3"></textarea>
+        </div>
+        
+        <div class="form-group">
+            <label for="uom">Unit of Measure</label>
+            <select id="uom" name="uom">
+                <option value="EA">Each (EA)</option>
+                <option value="CS">Case (CS)</option>
+                <option value="BX">Box (BX)</option>
+                <option value="PK">Pack (PK)</option>
+                <option value="DZ">Dozen (DZ)</option>
+                <option value="LB">Pound (LB)</option>
+                <option value="FT">Foot (FT)</option>
+                <option value="IN">Inch (IN)</option>
+                <option value="CM">Centimeter (CM)</option>
+                <option value="M">Meter (M)</option>
+                <option value="KG">Kilogram (KG)</option>
+                <option value="L">Liter (L)</option>
+                <option value="ML">Milliliter (ML)</option>
+                <option value="GL">Gallon (GL)</option>
+                <option value="OZ">Ounce (OZ)</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="equipmentCategory">Equipment Category</label>
+            <select id="equipmentCategory" name="equipmentCategory">
+                <option value="">Select Category</option>
+                <option value="VALVE">Valves</option>
+                <option value="PUMP">Pumps</option>
+                <option value="MOTOR">Motors</option>
+                <option value="ELECTRICAL">Electrical Equipment</option>
+                <option value="INSTRUMENTATION">Instrumentation</option>
+                <option value="PIPING">Piping & Fittings</option>
+                <option value="HARDWARE">Hardware</option>
+                <option value="CONSUMABLE">Consumables</option>
+                <option value="SAFETY">Safety Equipment</option>
+                <option value="TOOLS">Tools & Equipment</option>
+                <option value="OTHER">Other</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="equipmentSubCategory">Equipment Sub-Category</label>
+            <input type="text" id="equipmentSubCategory" name="equipmentSubCategory">
+        </div>
+        
+        <div class="form-group">
+            <label for="unspscCode">UNSPSC Code</label>
+            <input type="text" id="unspscCode" name="unspscCode" placeholder="8-digit code">
+        </div>
+        
+        <div class="form-group">
+            <label for="manufacturerName">Manufacturer Name</label>
+            <input type="text" id="manufacturerName" name="manufacturerName">
+        </div>
+        
+        <div class="form-group">
+            <label for="manufacturerPartNumber">Manufacturer Part Number</label>
+            <input type="text" id="manufacturerPartNumber" name="manufacturerPartNumber">
+        </div>
+        
+        <div class="form-group">
+            <label for="criticality">Criticality</label>
+            <select id="criticality" name="criticality">
+                <option value="NO">Not Critical</option>
+                <option value="LOW">Low Criticality</option>
+                <option value="MEDIUM">Medium Criticality</option>
+                <option value="HIGH">High Criticality</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>
+                <input type="checkbox" id="stockItem" name="stockItem"> Stock Item
+            </label>
+        </div>
+        
+        <div class="form-group">
+            <label>
+                <input type="checkbox" id="plannedStock" name="plannedStock"> Planned Stock
+            </label>
+        </div>
+        
+        <button type="submit">Create Item</button>
+    </form>
+    
+    <div class="loading">
+        <div class="spinner"></div>
+        <p>Creating item...</p>
+    </div>
+    
+    <div id="result" class="result"></div>
+    
+    <script>
+        // Get form and result elements
+        const itemForm = document.getElementById('itemForm');
+        const resultDiv = document.getElementById('result');
+        const loadingDiv = document.querySelector('.loading');
+        
+        // Form submission handler
+        itemForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Show loading indicator
+            loadingDiv.style.display = 'block';
+            resultDiv.style.display = 'none';
+            
+            // Get form data
+            const formData = new FormData(itemForm);
+            const itemData = {};
+            
+            // Process form data
+            for (const [key, value] of formData.entries()) {
+                if (key === 'stockItem' || key === 'plannedStock') {
+                    itemData[key] = value === 'on' ? 'Y' : 'N';
+                } else {
+                    itemData[key] = value || null;
+                }
+            }
+            
+            // Try all available endpoints
+            const endpoints = [
+                '/api/super-simple-item-create',
+                '/api/direct-item-create',
+                '/api/item-direct-create'
+            ];
+            
+            let success = false;
+            let responseData = null;
+            
+            for (const endpoint of endpoints) {
+                try {
+                    console.log(`Trying endpoint: ${endpoint}`);
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(itemData)
+                    });
+                    
+                    responseData = await response.json();
+                    
+                    if (responseData.success) {
+                        success = true;
+                        console.log(`Success with endpoint: ${endpoint}`);
+                        break;
+                    } else {
+                        console.log(`Failed with endpoint: ${endpoint}`, responseData);
+                    }
+                } catch (error) {
+                    console.error(`Error with endpoint ${endpoint}:`, error);
+                }
+            }
+            
+            // Hide loading indicator
+            loadingDiv.style.display = 'none';
+            
+            // Show result
+            resultDiv.style.display = 'block';
+            if (success) {
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `
+                    <h3>Item Created Successfully!</h3>
+                    <p>Item Number: ${responseData.data.itemNumber}</p>
+                    <p>Item ID: ${responseData.data.id}</p>
+                `;
+                
+                // Reset form
+                itemForm.reset();
+            } else {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <h3>Failed to Create Item</h3>
+                    <p>${responseData?.message || 'An unknown error occurred'}</p>
+                    <pre>${JSON.stringify(responseData, null, 2)}</pre>
+                `;
+            }
+        });
+        
+        // Generate random item number on page load
+        window.addEventListener('load', () => {
+            const itemNumberInput = document.getElementById('itemNumber');
+            const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            const prefix = 
+                letters.charAt(Math.floor(Math.random() * letters.length)) + 
+                letters.charAt(Math.floor(Math.random() * letters.length));
+            const number = Math.floor(100000 + Math.random() * 900000);
+            itemNumberInput.value = `${prefix}-${number}`;
+        });
+    </script>
+</body>
+</html>

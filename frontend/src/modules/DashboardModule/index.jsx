@@ -47,16 +47,16 @@ export default function DashboardModule() {
   const { result: clientResult, isLoading: clientLoading } = useFetch(() =>
     request.summary({ entity: 'client' })
   );
-
   useEffect(() => {
-    const currency = money_format_settings.default_currency_code || null;
+    // Check if money_format_settings exists and has default_currency_code
+    const currency = money_format_settings?.default_currency_code || 'USD';
 
-    if (currency) {
-      fetchInvoicesStats(getStatsData({ entity: 'invoice', currency }));
-      fetchQuotesStats(getStatsData({ entity: 'quote', currency }));
-      fetchPayemntsStats(getStatsData({ entity: 'payment', currency }));
-    }
-  }, [money_format_settings.default_currency_code]);
+    // Fetch stats with the currency (default to USD if not available)
+    fetchInvoicesStats(getStatsData({ entity: 'invoice', currency }));
+    fetchQuotesStats(getStatsData({ entity: 'quote', currency }));
+    fetchPayemntsStats(getStatsData({ entity: 'payment', currency }));
+    
+  }, [money_format_settings?.default_currency_code]);
 
   const dataTableColumns = [
     {

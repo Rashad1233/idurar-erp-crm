@@ -39,8 +39,18 @@ function AddNewItem({ config }) {
     </Button>
   );
 }
-export default function DataTable({ config, extra = [] }) {
-  let { entity, dataTableColumns, DATATABLE_TITLE, fields, searchConfig } = config;
+export default function DataTable({ config, columns, dataSource, isLoading, pagination, rowKey, expandable, extra = [] }) {
+  // Support both config object and direct props
+  const useDirectProps = !config && columns;
+  
+  let entity, dataTableColumns, DATATABLE_TITLE, fields, searchConfig;
+  
+  if (!useDirectProps && config) {
+    ({ entity, dataTableColumns, DATATABLE_TITLE, fields, searchConfig } = config);
+  } else if (useDirectProps) {
+    dataTableColumns = columns;
+  }
+  
   const { crudContextAction } = useCrudContext();
   const { panel, collapsedBox, modal, readBox, editBox, advancedBox } = crudContextAction;
   const translate = useLanguage();
@@ -145,67 +155,80 @@ export default function DataTable({ config, extra = [] }) {
       ),
     },
   ];
-
-  const { result: listResult, isLoading: listIsLoading } = useSelector(selectListItems);
-
-  const { pagination, items: dataSource } = listResult;
-
   const dispatch = useDispatch();
+  
+  // Only use Redux for config-based usage, not for direct props
+  const { result: listResult, isLoading: listIsLoading } = useDirectProps ? { result: {}, isLoading: false } : useSelector(selectListItems);
+  
+  const reduxPagination = listResult?.pagination;
+  const reduxDataSource = listResult?.items;
 
-  const handelDataTableLoad = useCallback((pagination) => {
-    const options = { page: pagination.current || 1, items: pagination.pageSize || 10 };
+  // Use either direct props or Redux state
+  const finalDataSource = useDirectProps ? dataSource : reduxDataSource;
+  const finalIsLoading = useDirectProps ? isLoading : listIsLoading;
+  const finalPagination = useDirectProps ? pagination : reduxPagination;
+  
+  const handelDataTableLoad = useCallback((paginationParams) => {
+    if (useDirectProps) return;
+    
+    const options = { page: paginationParams.current || 1, items: paginationParams.pageSize || 10 };
     dispatch(crud.list({ entity, options }));
-  }, []);
+  }, [entity, useDirectProps]);
 
   const filterTable = (e) => {
+    if (useDirectProps) return;
+    
     const value = e.target.value;
     const options = { q: value, fields: searchConfig?.searchFields || '' };
     dispatch(crud.list({ entity, options }));
   };
 
   const dispatcher = () => {
+    if (useDirectProps) return;
     dispatch(crud.list({ entity }));
   };
 
   useEffect(() => {
+    if (useDirectProps) return;
+    
     const controller = new AbortController();
     dispatcher();
     return () => {
       controller.abort();
     };
-  }, []);
-
+  }, [useDirectProps, entity]);
   return (
     <>
-      <PageHeader
-        onBack={() => window.history.back()}
-        backIcon={<ArrowLeftOutlined />}
-        title={DATATABLE_TITLE}
-        ghost={false}
-        extra={[
-          <Input
-            key={`searchFilterDataTable}`}
-            onChange={filterTable}
-            placeholder={translate('search')}
-            allowClear
-          />,
-          <Button onClick={handelDataTableLoad} key={`${uniqueId()}`} icon={<RedoOutlined />}>
-            {translate('Refresh')}
-          </Button>,
-
-          <AddNewItem key={`${uniqueId()}`} config={config} />,
-        ]}
-        style={{
-          padding: '20px 0px',
-        }}
-      ></PageHeader>
+      {!useDirectProps && (
+        <PageHeader
+          onBack={() => window.history.back()}
+          backIcon={<ArrowLeftOutlined />}
+          title={DATATABLE_TITLE}
+          ghost={false}
+          extra={[
+            <Input
+              key={`searchFilterDataTable}`}
+              onChange={filterTable}
+              placeholder={translate('search')}
+              allowClear
+            />,
+            <Button onClick={handelDataTableLoad} key={`${uniqueId()}`} icon={<RedoOutlined />}>
+              {translate('Refresh')}
+            </Button>,
+            <AddNewItem key={`${uniqueId()}`} config={config} />,
+          ]}
+          style={{
+            padding: '20px 0px',
+          }}
+        ></PageHeader>
+      )}
 
       <Table
         columns={dataTableColumns}
-        rowKey={(item) => item._id}
-        dataSource={dataSource}
-        pagination={pagination}
-        loading={listIsLoading}
+        rowKey={useDirectProps ? rowKey : (item => item._id)}
+        dataSource={finalDataSource}        expandable={useDirectProps ? expandable : undefined}
+        pagination={finalPagination}
+        loading={finalIsLoading}
         onChange={handelDataTableLoad}
         scroll={{ x: true }}
       />

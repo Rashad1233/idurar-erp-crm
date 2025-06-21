@@ -1,0 +1,186 @@
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { request } from '@/request';
+
+/**
+ * Custom hook for searching data via API
+ * 
+ * @param {string} entity - The entity to search (e.g., 'purchase-requisition')
+ * @param {Object} defaultOptions - Default search options
+ * @returns {Object} - Search state and functions
+ */
+const useApiSearch = (entity, defaultOptions = {}) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [error, setError] = useState(null);
+  
+  // Cache for search results to prevent repeated searches for the same term
+  const [searchCache, setSearchCache] = useState({});
+  
+  // Use a ref to access the cache without creating dependencies
+  const cacheRef = useRef({});
+  
+  // Keep the ref up to date with the latest cache
+  useEffect(() => {
+    cacheRef.current = searchCache;
+  }, [searchCache]);
+  
+  // Debounced search function with caching
+  const debouncedSearch = useCallback((term) => {
+    if (!term || term.trim() === '') {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+    
+    // Create a cache key based on the search term and options
+    const cacheKey = `${term}:${JSON.stringify(defaultOptions)}`;
+    
+    // Check if we have a cached result
+    if (cacheRef.current[cacheKey]) {
+      console.log('Using cached search results for:', term);
+      setSearchResults(cacheRef.current[cacheKey].results);
+      setIsSearching(false);
+      return;
+    }
+
+    // Otherwise proceed with API request
+    setIsSearching(true);
+    setError(null);
+    
+    // Safety timeout to prevent UI from being stuck in loading state
+    const loadingTimeout = setTimeout(() => {
+      setIsSearching(false);
+    }, 1500);
+
+    // Build search options
+    const options = {
+      q: term,
+      ...defaultOptions
+    };
+
+    // Call the search API
+    request.search({ entity, options })
+      .then(response => {
+        clearTimeout(loadingTimeout);
+        
+        if (response.success) {
+          const results = response.result || [];
+          
+          // Cache the results
+          setSearchCache(prevCache => ({
+            ...prevCache,
+            [cacheKey]: { 
+              results,
+              timestamp: Date.now()
+            }
+          }));
+          
+          setSearchResults(results);
+          setIsSearching(false);
+        } else {
+          setSearchResults([]);
+          setError(response.message || 'Search failed');
+          
+          // Cache empty results too
+          setSearchCache(prevCache => ({
+            ...prevCache,
+            [cacheKey]: { 
+              results: [],
+              timestamp: Date.now()
+            }
+          }));
+          
+          setIsSearching(false);
+        }
+      })
+      .catch(err => {
+        clearTimeout(loadingTimeout);
+        
+        console.error(`Error searching ${entity}:`, err);
+        setError(err.message || 'An error occurred during search');
+        setSearchResults([]);
+        
+        // Cache the error
+        setSearchCache(prevCache => ({
+          ...prevCache,
+          [cacheKey]: { 
+            results: [],
+            timestamp: Date.now(),
+            error: err.message
+          }
+        }));
+        
+        setIsSearching(false);
+      });
+  }, [entity, defaultOptions]); // No dependency on searchCache
+
+  // Handle search term changes with debounce
+  useEffect(() => {
+    // Skip if term is empty
+    if (!searchTerm || searchTerm.trim() === '') {
+      setSearchResults([]);
+      setIsSearching(false);
+      return () => {};
+    }
+    
+    // Check cache first
+    const cacheKey = `${searchTerm}:${JSON.stringify(defaultOptions)}`;
+    if (cacheRef.current[cacheKey]) {
+      setSearchResults(cacheRef.current[cacheKey].results);
+      setIsSearching(false);
+      return () => {};
+    }
+    
+    // Show loading after a small delay
+    const loadingDelay = setTimeout(() => {
+      setIsSearching(true);
+    }, 100);
+    
+    // Use adaptive debounce time
+    let debounceTime = 300;
+    if (/^\d+$/.test(searchTerm) || searchTerm.length > 5) {
+      debounceTime = 200;
+    } else if (searchTerm.length <= 2) {
+      debounceTime = 400;
+    }
+    
+    // Set up the debounced search
+    const handler = setTimeout(() => {
+      debouncedSearch(searchTerm);
+      clearTimeout(loadingDelay);
+    }, debounceTime);
+
+    return () => {
+      clearTimeout(handler);
+      clearTimeout(loadingDelay);
+    };
+  }, [searchTerm, debouncedSearch, defaultOptions]);
+
+  // Function to manually trigger search
+  const search = useCallback((term) => {
+    setSearchTerm(term);
+  }, []);
+  
+  // Function to clear search
+  const clearSearch = useCallback((clearCache = false) => {
+    setSearchTerm('');
+    setSearchResults([]);
+    setError(null);
+    if (clearCache) {
+      setSearchCache({});
+    }
+  }, []);
+
+  return {
+    searchTerm,
+    setSearchTerm,
+    searchResults,
+    isSearching,
+    error,
+    search,
+    clearSearch
+  };
+};
+
+export default useApiSearch;

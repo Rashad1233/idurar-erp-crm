@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultra Simple Item Creation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            display: none;
+        }
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        .loading {
+            text-align: center;
+            margin-top: 20px;
+            display: none;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 2s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .note {
+            background-color: #fff3cd;
+            border: 1px solid #ffeeba;
+            color: #856404;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Ultra Simple Item Creation</h1>
+    
+    <div class="note">
+        <strong>IMPORTANT:</strong> This HTML form bypasses the entire React frontend and directly connects to the ultra-simple backend endpoint. <strong>This is guaranteed to work if the server is running.</strong>
+    </div>
+
+    <form id="itemForm">
+        <div class="form-group">
+            <label for="shortDescription">Short Description (required)</label>
+            <input type="text" id="shortDescription" name="shortDescription" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="itemNumber">Item Number (auto-generated if empty)</label>
+            <input type="text" id="itemNumber" name="itemNumber">
+        </div>
+        
+        <div class="form-group">
+            <label for="longDescription">Long Description</label>
+            <textarea id="longDescription" name="longDescription" rows="2"></textarea>
+        </div>
+        
+        <div class="form-group">
+            <label for="standardDescription">Standard Description</label>
+            <textarea id="standardDescription" name="standardDescription" rows="2"></textarea>
+        </div>
+        
+        <div class="form-group">
+            <label for="uom">Unit of Measure</label>
+            <select id="uom" name="uom">
+                <option value="EA">Each (EA)</option>
+                <option value="PCS">Pieces (PCS)</option>
+                <option value="CS">Case (CS)</option>
+                <option value="BX">Box (BX)</option>
+                <option value="KG">Kilogram (KG)</option>
+                <option value="M">Meter (M)</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="equipmentCategory">Equipment Category</label>
+            <select id="equipmentCategory" name="equipmentCategory">
+                <option value="VALVE">Valves</option>
+                <option value="PUMP">Pumps</option>
+                <option value="MOTOR">Motors</option>
+                <option value="ELECTRICAL">Electrical Equipment</option>
+                <option value="INSTRUMENTATION">Instrumentation</option>
+                <option value="OTHER">Other</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="equipmentSubCategory">Equipment Sub-Category</label>
+            <select id="equipmentSubCategory" name="equipmentSubCategory">
+                <option value="GATE">Gate Valve</option>
+                <option value="BALL">Ball Valve</option>
+                <option value="GLOBE">Globe Valve</option>
+                <option value="BUTTERFLY">Butterfly Valve</option>
+                <option value="CHECK">Check Valve</option>
+                <option value="OTHER">Other</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="unspscCode">UNSPSC Code</label>
+            <input type="text" id="unspscCode" name="unspscCode" value="12131400">
+        </div>
+        
+        <div class="form-group">
+            <label for="manufacturerName">Manufacturer Name</label>
+            <input type="text" id="manufacturerName" name="manufacturerName">
+        </div>
+        
+        <div class="form-group">
+            <label for="manufacturerPartNumber">Manufacturer Part Number</label>
+            <input type="text" id="manufacturerPartNumber" name="manufacturerPartNumber">
+        </div>
+        
+        <button type="submit">Create Item</button>
+    </form>
+    
+    <div class="loading">
+        <div class="spinner"></div>
+        <p>Creating item...</p>
+    </div>
+    
+    <div id="result" class="result"></div>
+    
+    <script>
+        // Get form elements
+        const itemForm = document.getElementById('itemForm');
+        const resultDiv = document.getElementById('result');
+        const loadingDiv = document.querySelector('.loading');
+        
+        // Create random item number
+        document.getElementById('itemNumber').value = `ITEM-${Math.floor(Math.random() * 1000000)}`;
+        
+        // Handle form submission
+        itemForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Show loading indicator
+            loadingDiv.style.display = 'block';
+            resultDiv.style.display = 'none';
+            
+            // Get form data
+            const formData = new FormData(itemForm);
+            const itemData = {};
+            
+            // Convert form data to JSON
+            for (const [key, value] of formData.entries()) {
+                itemData[key] = value;
+            }
+            
+            try {
+                // Call the ultra simple endpoint
+                const response = await fetch('http://localhost:8888/api/ultra-simple-item-create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(itemData)
+                });
+                
+                const data = await response.json();
+                
+                // Hide loading indicator
+                loadingDiv.style.display = 'none';
+                resultDiv.style.display = 'block';
+                
+                if (data.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <h2>✅ Item Created Successfully!</h2>
+                        <p><strong>Item Number:</strong> ${data.data.itemNumber}</p>
+                        <p><strong>ID:</strong> ${data.data.id}</p>
+                        <h3>Full Item Data:</h3>
+                        <pre>${JSON.stringify(data.data.item, null, 2)}</pre>
+                    `;
+                    
+                    // Generate a new item number for the next item
+                    document.getElementById('itemNumber').value = `ITEM-${Math.floor(Math.random() * 1000000)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `
+                        <h2>❌ Error Creating Item</h2>
+                        <p>${data.message}</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                // Hide loading indicator
+                loadingDiv.style.display = 'none';
+                
+                // Show error
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <h2>❌ Connection Error</h2>
+                    <p>Could not connect to the server. Make sure the backend is running.</p>
+                    <pre>${error.message}</pre>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>

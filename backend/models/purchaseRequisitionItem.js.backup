@@ -1,0 +1,104 @@
+const { Model, DataTypes } = require('sequelize');
+
+module.exports = (sequelize) => {
+  class PurchaseRequisitionItem extends Model {
+    static associate(models) {
+      this.belongsTo(models.PurchaseRequisition, {
+        foreignKey: 'prId',
+        as: 'purchaseRequisition'
+      });      this.belongsTo(models.ItemMaster, {
+        foreignKey: 'itemId',
+        as: 'item'
+      });
+
+      this.belongsTo(models.Contract, {
+        foreignKey: 'contractId',
+        as: 'contract'
+      });
+
+      this.belongsTo(models.Supplier, {
+        foreignKey: 'recommendedSupplierId',
+        as: 'recommendedSupplier'
+      });
+    }
+  }
+
+  PurchaseRequisitionItem.init({    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true
+    },
+    prId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'PurchaseRequisitions',
+        key: 'id'
+      }
+    },
+    itemNumber: {
+      type: DataTypes.STRING
+    },
+    itemId: {
+      type: DataTypes.UUID,
+      references: {
+        model: 'items',
+        key: 'id'
+      }
+    },
+    description: {
+      type: DataTypes.TEXT,
+      allowNull: false
+    },
+    quantity: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: false
+    },
+    uom: {
+      type: DataTypes.STRING,
+      allowNull: false
+    },
+    unitPrice: {
+      type: DataTypes.DECIMAL(15, 2)
+    },
+    currency: {
+      type: DataTypes.STRING,
+      defaultValue: 'USD'
+    },
+    subtotal: {
+      type: DataTypes.DECIMAL(15, 2),
+      allowNull: false,
+      defaultValue: 0.00
+    },
+    contractId: {
+      type: DataTypes.UUID,
+      references: {
+        model: 'contracts',
+        key: 'id'
+      }
+    },
+    recommendedSupplierId: {
+      type: DataTypes.UUID,
+      references: {
+        model: 'suppliers',
+        key: 'id'
+      }
+    },
+    requiredDate: {
+      type: DataTypes.DATE
+    },
+    specifications: {
+      type: DataTypes.TEXT
+    },
+    comments: {
+      type: DataTypes.TEXT
+    }
+  }, {
+    sequelize,
+    modelName: 'PurchaseRequisitionItem',
+    tableName: 'purchase_requisition_items',
+    timestamps: true
+  });
+
+  return PurchaseRequisitionItem;
+};

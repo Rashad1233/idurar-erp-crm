@@ -1,0 +1,91 @@
+/* Global tooltip disabling CSS */
+.ant-tooltip, 
+.ant-tooltip-open,
+.ant-tooltip-placement-top,
+.ant-tooltip-placement-topLeft,
+.ant-tooltip-placement-topRight,
+[class*='ant-tooltip'] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  max-height: 0 !important;
+  max-width: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Completely suppress tooltip-triggering behavior */
+[title] {
+  pointer-events: none !important;
+}
+
+/* Completely suppress title attributes */
+[title], *[title] {
+  title: none !important;
+  pointer-events: none !important;
+}
+
+/* Override React portal for tooltips */
+body > div[role="tooltip"],
+#root ~ div[class*="tooltip"] {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* Prevent ellipsis on table cells to stop triggering tooltips */
+.ant-table-cell {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+/* Disable table cell ellipsis behavior */
+.ant-table-cell-ellipsis {
+  overflow: visible !important;
+  white-space: normal !important;
+  text-overflow: clip !important;
+}
+
+/* Make sure title cells don't trigger tooltips */
+.ant-table-thead .ant-table-cell {
+  overflow: visible !important;
+  white-space: normal !important;
+  text-overflow: clip !important;
+}
+
+/* Override any ellipsis styling that might cause tooltips */
+[class*='ellipsis'] {
+  overflow: visible !important;
+  white-space: normal !important;
+  text-overflow: clip !important;
+}
+
+/* Custom styles for our ultra-static tooltip */
+.static-tooltip-content {
+  background-color: #fff;
+  border-radius: 2px;
+  box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 9px 28px 8px rgba(0, 0, 0, 0.05);
+  color: rgba(0, 0, 0, 0.85);
+  padding: 6px 8px;
+  max-width: 300px;
+  z-index: 9999;
+  position: fixed;
+}
+
+.tooltip-icon-wrapper {
+  cursor: help;
+}
+
+/* Target Ant Design tooltip internal components */
+.ant-tooltip-inner, 
+.ant-tooltip-arrow, 
+.ant-tooltip-content {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* Override Tooltip2 component behavior */
+div[class*="Tooltip2"] {
+  display: none !important;
+  visibility: hidden !important;
+}

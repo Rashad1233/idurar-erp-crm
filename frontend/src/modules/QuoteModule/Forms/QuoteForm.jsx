@@ -1,3 +1,4 @@
+import React from 'react';
 import { useState, useEffect, useRef } from 'react';
 import dayjs from 'dayjs';
 import { Form, Input, InputNumber, Button, Select, Divider, Row, Col } from 'antd';
@@ -19,48 +20,108 @@ import calculate from '@/utils/calculate';
 import { useSelector } from 'react-redux';
 import SelectAsync from '@/components/SelectAsync';
 
-export default function QuoteForm({ subTotal = 0, current = null }) {
-  const { last_quote_number } = useSelector(selectFinanceSettings);
-
-  if (last_quote_number === undefined) {
-    return <></>;
+// Error Boundary Component
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
   }
 
-  return <LoadQuoteForm subTotal={subTotal} current={current} />;
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("Quote form error:", error, errorInfo);
+    this.setState({ errorInfo });
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '20px', border: '1px solid #f5222d', borderRadius: '5px' }}>
+          <h2>Something went wrong in the Quote form.</h2>
+          <p>Please try again or contact support if the issue persists.</p>
+          <p style={{color: 'red'}}>{this.state.error?.toString()}</p>
+          <Button 
+            type="primary" 
+            onClick={() => this.setState({ hasError: false, error: null, errorInfo: null })}
+          >
+            Try Again
+          </Button>
+        </div>
+      );
+    }
+    
+    return this.props.children;
+  }
 }
 
-function LoadQuoteForm({ subTotal = 0, current = null }) {
+export default function QuoteForm({ subTotal = 0, current = null }) {
+  const financeSettings = useSelector(selectFinanceSettings) || {};
+  const last_quote_number = financeSettings?.last_quote_number || 1000;
+
+  return (
+    <ErrorBoundary>
+      <LoadQuoteForm subTotal={subTotal} current={current} lastQuoteNumber={last_quote_number} />
+    </ErrorBoundary>
+  );
+}
+
+function LoadQuoteForm({ subTotal = 0, current = null, lastQuoteNumber = 1000 }) {
   const translate = useLanguage();
   const { dateFormat } = useDate();
-  const { last_quote_number } = useSelector(selectFinanceSettings);
-  const [lastNumber, setLastNumber] = useState(() => last_quote_number + 1);
+  const [lastNumber, setLastNumber] = useState(() => lastQuoteNumber + 1);
 
   const [total, setTotal] = useState(0);
   const [taxRate, setTaxRate] = useState(0);
   const [taxTotal, setTaxTotal] = useState(0);
   const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear());
+  
   const handelTaxChange = (value) => {
-    setTaxRate(value / 100);
+    if (value !== undefined && value !== null) {
+      setTaxRate(Number(value) / 100);
+    } else {
+      setTaxRate(0);
+    }
   };
 
   useEffect(() => {
     if (current) {
-      const { taxRate = 0, year, number } = current;
-      setTaxRate(taxRate / 100);
-      setCurrentYear(year);
-      setLastNumber(number);
+      try {
+        const { taxRate = 0, year, number } = current;
+        setTaxRate(Number(taxRate) / 100);
+        setCurrentYear(Number(year) || new Date().getFullYear());
+        setLastNumber(Number(number) || (Number(lastQuoteNumber) + 1));
+      } catch (error) {
+        console.error('Error processing current quote data:', error);
+      }
     }
-  }, [current]);
+  }, [current, lastQuoteNumber]);
+  
   useEffect(() => {
-    const currentTotal = calculate.add(calculate.multiply(subTotal, taxRate), subTotal);
-    setTaxTotal(Number.parseFloat(calculate.multiply(subTotal, taxRate)));
-    setTotal(Number.parseFloat(currentTotal));
+    try {
+      const numericSubTotal = Number(subTotal) || 0;
+      const numericTaxRate = Number(taxRate) || 0;
+      
+      const currentTotal = calculate.add(calculate.multiply(numericSubTotal, numericTaxRate), numericSubTotal);
+      setTaxTotal(Number.parseFloat(calculate.multiply(numericSubTotal, numericTaxRate)));
+      setTotal(Number.parseFloat(currentTotal));
+    } catch (error) {
+      console.error('Error calculating totals:', error);
+      setTaxTotal(0);
+      setTotal(0);
+    }
   }, [subTotal, taxRate]);
-
   const addField = useRef(false);
 
   useEffect(() => {
-    addField.current.click();
+    // Add a small delay to ensure the DOM is ready
+    setTimeout(() => {
+      if (addField.current) {
+        addField.current.click();
+      }
+    }, 100);
   }, []);
 
   return (
@@ -191,9 +252,17 @@ function LoadQuoteForm({ subTotal = 0, current = null }) {
         <Col className="gutter-row" span={5}>
           <p>{translate('Total')}</p>
         </Col>
-      </Row>
-      <Form.List name="items">
-        {(fields, { add, remove }) => (
+      </Row>      <Form.List name="items" rules={[
+        {
+          validator: async (_, items) => {
+            if (!items || items.length === 0) {
+              return Promise.reject(new Error('At least one item is required'));
+            }
+            return Promise.resolve();
+          },
+        },
+      ]}>
+        {(fields, { add, remove }, { errors }) => (
           <>
             {fields.map((field) => (
               <ItemRow key={field.key} remove={remove} field={field} current={current}></ItemRow>
@@ -208,6 +277,7 @@ function LoadQuoteForm({ subTotal = 0, current = null }) {
               >
                 {translate('Add field')}
               </Button>
+              <Form.ErrorList errors={errors} />
             </Form.Item>
           </>
         )}

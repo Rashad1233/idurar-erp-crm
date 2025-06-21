@@ -1,9 +1,7 @@
-import { lazy, useEffect } from 'react';
-
-import {} from 'react-router-dom';
-import {} from 'react-router-dom';
+import { useEffect } from 'react';
 import { Navigate, useLocation, useRoutes } from 'react-router-dom';
 import { useAppContext } from '@/context/appContext';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 import routes from './routes';
 
@@ -35,10 +33,11 @@ export default function AppRouter() {
     } else {
       const path = getAppNameByPath(location.pathname);
       app.open(path);
-    }
-  }, [location]);
+    }  }, [location]);
 
+  // Use useRoutes to generate the route components
   let element = useRoutes(routesList);
 
+  // Return the routes directly without error boundary for now
   return element;
 }

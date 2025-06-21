@@ -12,44 +12,62 @@ export default function ItemRow({ field, remove, current = null }) {
 
   const money = useMoney();
   const updateQt = (value) => {
-    setQuantity(value);
+    setQuantity(Number(value) || 0);
   };
   const updatePrice = (value) => {
-    setPrice(value);
+    setPrice(Number(value) || 0);
   };
-
   useEffect(() => {
     if (current) {
-      // When it accesses the /payment/ endpoint,
-      // it receives an invoice.item instead of just item
-      // and breaks the code, but now we can check if items exists,
-      // and if it doesn't we can access invoice.items.
+      try {
+        // When it accesses the /payment/ endpoint,
+        // it receives an invoice.item instead of just item
+        // and breaks the code, but now we can check if items exists,
+        // and if it doesn't we can access invoice.items.
 
-      const { items, invoice } = current;
+        const { items = [], invoice } = current;
 
-      if (invoice) {
-        const item = invoice[field.fieldKey];
+        if (invoice) {
+          const item = invoice && field.fieldKey !== undefined ? invoice[field.fieldKey] : null;
 
-        if (item) {
-          setQuantity(item.quantity);
-          setPrice(item.price);
+          if (item) {
+            setQuantity(Number(item.quantity) || 0);
+            setPrice(Number(item.price) || 0);
+          }
+        } else if (items && Array.isArray(items)) {
+          const item = field.fieldKey !== undefined && field.fieldKey < items.length ? items[field.fieldKey] : null;
+
+          if (item) {
+            setQuantity(Number(item.quantity) || 0);
+            setPrice(Number(item.price) || 0);
+          }
         }
-      } else {
-        const item = items[field.fieldKey];
-
-        if (item) {
-          setQuantity(item.quantity);
-          setPrice(item.price);
-        }
+      } catch (error) {
+        console.error('Error processing item data:', error);
       }
     }
   }, [current]);
 
   useEffect(() => {
     const currentTotal = calculate.multiply(price, quantity);
-
     setTotal(currentTotal);
-  }, [price, quantity]);
+    
+    // Update the form field value to ensure it's saved
+    const formInstance = field.form;
+    if (formInstance) {
+      const fieldNamePath = [field.name, 'total'];
+      const currentValue = formInstance.getFieldValue(fieldNamePath);
+      
+      if (currentValue !== currentTotal) {
+        formInstance.setFieldsValue({
+          [field.name]: {
+            ...(formInstance.getFieldValue(field.name) || {}),
+            total: currentTotal
+          }
+        });
+      }
+    }
+  }, [price, quantity, field]);
 
   return (
     <Row gutter={[12, 12]} style={{ position: 'relative' }}>

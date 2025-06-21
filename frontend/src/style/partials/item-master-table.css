@@ -1,0 +1,40 @@
+/* Item Master Table specific styles */
+.item-master-table .ant-table-wrapper {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.item-master-table .ant-table {
+  width: 100%;
+  table-layout: auto;
+}
+
+.item-master-table .table-responsive {
+  margin: 0;
+  padding: 0;
+}
+
+/* Adjust SimpleCrudModule container for item master */
+.item-master-container .action-panel {
+  margin-bottom: 15px;
+}
+
+.item-master-container .search-container {
+  margin-bottom: 10px;
+}
+
+/* Make sure the internal content expands to fill the container */
+.item-master-container .table-responsive {
+  padding: 0;
+}
+
+/* Optimize column sizing */
+.item-master-table .ant-table-cell {
+  padding: 8px 6px !important;
+}
+
+/* Remove any extra padding/margins from containers */
+.item-master-container .whiteBox {
+  padding: 10px !important;
+}

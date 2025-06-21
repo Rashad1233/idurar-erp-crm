@@ -1,31 +1,42 @@
 import * as actionTypes from './types';
 import * as authService from '@/auth';
 import { request } from '@/request';
+import { ensureEntityIds } from '@/utils/entityUtils';
 
 export const login =
   ({ loginData }) =>
   async (dispatch) => {
-    dispatch({
-      type: actionTypes.REQUEST_LOADING,
-    });
-    const data = await authService.login({ loginData });
-
-    if (data.success === true) {
-      const auth_state = {
-        current: data.result,
-        isLoggedIn: true,
-        isLoading: false,
-        isSuccess: true,
-      };
-      window.localStorage.setItem('auth', JSON.stringify(auth_state));
-      window.localStorage.removeItem('isLogout');
+    try {
       dispatch({
-        type: actionTypes.REQUEST_SUCCESS,
-        payload: data.result,
+        type: actionTypes.REQUEST_LOADING,
       });
-    } else {
+      
+      const data = await authService.login({ loginData });
+      
+      if (data.success === true) {
+        const auth_state = {
+          current: data.result,
+          isLoggedIn: true,
+          isLoading: false,
+          isSuccess: true,
+        };
+        window.localStorage.setItem('auth', JSON.stringify(auth_state));
+        window.localStorage.removeItem('isLogout');
+        dispatch({
+          type: actionTypes.REQUEST_SUCCESS,
+          payload: data.result,
+        });
+      } else {
+        dispatch({
+          type: actionTypes.REQUEST_FAILED,
+          error: data.message || 'Login failed'
+        });
+      }
+    } catch (error) {
+      console.error('Login error:', error);
       dispatch({
         type: actionTypes.REQUEST_FAILED,
+        error: error.message || 'An error occurred during login'
       });
     }
   };
@@ -139,7 +150,10 @@ export const logout = () => async (dispatch) => {
 export const updateProfile =
   ({ entity, jsonData }) =>
   async (dispatch) => {
-    let data = await request.updateAndUpload({ entity, id: '', jsonData });
+    // Ensure any entity references are valid UUIDs
+    const processedData = ensureEntityIds(jsonData);
+    
+    let data = await request.updateAndUpload({ entity, id: '', jsonData: processedData });
 
     if (data.success === true) {
       dispatch({

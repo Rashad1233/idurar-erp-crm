@@ -32,7 +32,17 @@ In the .env file, find the line that reads:
 
 Replace "your-mongodb-uri" with the actual URI of your MongoDB database.
 
-#### Step 5: Install Backend Dependencies
+#### Step 5: Configure DeepSeek API for UNSPSC Search (Optional)
+
+If you want to use the AI-powered UNSPSC search feature, you need to add your DeepSeek API key to the .env file:
+
+```
+DEEPSEEK_API_KEY=your_deepseek_api_key_here
+```
+
+You can obtain a DeepSeek API key by signing up at [deepseek.com](https://deepseek.com) and creating an API key in your account dashboard.
+
+#### Step 6: Install Backend Dependencies
 
 In your terminal, navigate to the /backend directory
 
@@ -48,7 +58,7 @@ npm install
 
 This command will install all the required packages specified in the package.json file.
 
-#### Step 6: Run Setup Script
+#### Step 7: Run Setup Script
 
 While still in the /backend directory of the project, execute the following command to run the setup script:
 
@@ -58,7 +68,7 @@ npm run setup
 
 This setup script may perform necessary database migrations or any other initialization tasks required for the project.
 
-#### Step 7: Run the Backend Server
+#### Step 8: Run the Backend Server
 
 In the same terminal, run the following command to start the backend server:
 
@@ -68,7 +78,7 @@ npm run dev
 
 This command will start the backend server, and it will listen for incoming requests.
 
-#### Step 8: Install Frontend Dependencies
+#### Step 9: Install Frontend Dependencies
 
 Open a new terminal window , and run the following command to install the frontend dependencies:
 
@@ -80,7 +90,7 @@ cd frontend
 npm install
 ```
 
-#### Step 9: Run the Frontend Server
+#### Step 10: Run the Frontend Server
 
 After installing the frontend dependencies, run the following command in the same terminal to start the frontend server:
 

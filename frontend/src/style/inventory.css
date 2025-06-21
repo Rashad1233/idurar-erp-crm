@@ -1,0 +1,369 @@
+/* Inventory Table Styles */
+
+/* Ensure table container has proper minimum height and spacing */
+.inventory-table-container {
+  min-height: 600px !important;
+  padding-bottom: 20px !important;
+  margin-bottom: 20px;
+}
+
+/* Give table body more breathing room */
+.inventory-table-container .ant-table-tbody {
+  min-height: 400px;
+}
+
+/* Ensure table has proper height calculation */
+.inventory-table-container .ant-table-container {
+  overflow-x: auto !important;
+  min-height: 500px;
+}
+
+/* Improve pagination spacing */
+.inventory-table-container .ant-pagination {
+  margin-top: 16px !important;
+  margin-bottom: 16px !important;
+}
+
+/* Add proper cell truncation with ellipsis */
+.inventory-table-container .ant-table-cell {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 12px 16px !important; /* Increase cell padding for better spacing */
+}
+
+/* Improve header spacing */
+.inventory-table-container .ant-table-thead > tr > th {
+  padding: 14px 16px !important; /* Increase header padding for better spacing */
+  font-weight: 600 !important; /* Make headers bolder */
+  letter-spacing: 0.3px !important; /* Improve header readability */
+}
+
+/* Make sure fixed columns work properly */
+.inventory-table-container .ant-table-cell.ant-table-cell-fix-left,
+.inventory-table-container .ant-table-cell.ant-table-cell-fix-right {
+  z-index: 2;
+}
+
+/* Improve inventory number display */
+.inventory-number-field {
+  font-family: monospace;
+  letter-spacing: 0.5px;
+}
+
+/* Better table summary styling */
+.inventory-table-container .ant-table-summary {
+  background-color: #f0f7ff;
+}
+
+.inventory-table-container .ant-table-summary-row td {
+  font-weight: 500;
+}
+
+/* Improve tooltip display for truncated cells */
+.ant-tooltip-inner {
+  max-width: 500px;
+  overflow-wrap: break-word;
+}
+
+/* Better scrollbar styling */
+.inventory-table-container ::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.inventory-table-container ::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 4px;
+}
+
+.inventory-table-container ::-webkit-scrollbar-thumb {
+  background: #d9d9d9;
+  border-radius: 4px;
+}
+
+.inventory-table-container ::-webkit-scrollbar-thumb:hover {
+  background: #bfbfbf;
+}
+
+/* Enhanced Responsive styles for all device sizes */
+.inventory-table-container {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: visible; /* Changed from hidden to visible to prevent clipping */
+  background: #fff;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px; /* Add bottom margin to prevent pagination clipping */
+  padding-bottom: 10px; /* Add padding to ensure content is visible */
+}
+
+.inventory-table-container .ant-table {
+  min-width: 1400px; /* Minimum width to prevent column squashing */
+  margin: 0;
+}
+
+/* Ensure table body has proper spacing */
+.inventory-table-container .ant-table-body {
+  margin-bottom: 10px; /* Prevent last row from being clipped */
+}
+
+/* Fix for pagination positioning */
+.inventory-table-container .ant-pagination {
+  margin-top: 16px !important;
+  margin-bottom: 8px !important;
+  clear: both;
+}
+
+.inventory-table-container .ant-table-tbody > tr > td {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.inventory-table-container .ant-table-thead > tr > th {
+  background: #fafafa;
+  font-weight: 600;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+/* Mobile devices (portrait) */
+@media (max-width: 576px) {
+  .inventory-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+    margin: 0 -12px; /* Expand to edges on mobile */
+    border-radius: 0;
+  }
+  
+  .inventory-table-container .ant-table {
+    min-width: 1200px;
+    font-size: 12px;
+  }
+  
+  .inventory-table-container .ant-table-cell {
+    padding: 6px 4px !important;
+    font-size: 11px;
+  }
+  
+  .inventory-table-container .ant-table-thead > tr > th {
+    font-size: 10px;
+    padding: 4px 4px !important;
+    font-weight: 700;
+  }
+  
+  .inventory-table-container .ant-pagination {
+    text-align: center;
+    margin: 16px 0 8px 0;
+    padding: 0 12px;
+  }
+  
+  .inventory-table-container .ant-pagination-options {
+    display: none;
+  }
+  
+  .inventory-table-container .ant-pagination-item {
+    min-width: 28px;
+    height: 28px;
+    line-height: 26px;
+    margin-right: 4px;
+  }
+  
+  /* Hide less important columns on mobile */
+  .inventory-table-container .ant-table-cell:nth-child(n+8):nth-child(-n+12) {
+    display: none;
+  }
+}
+
+/* Mobile devices (landscape) */
+@media (max-width: 667px) and (orientation: landscape) {
+  .inventory-table-container .ant-table {
+    min-width: 1300px;
+    font-size: 13px;
+  }
+}
+
+/* Tablets (portrait) */
+@media (max-width: 768px) {
+  .inventory-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -8px;
+  }
+  
+  .inventory-table-container .ant-table {
+    min-width: 1300px;
+    font-size: 13px;
+  }
+  
+  .inventory-table-container .ant-table-cell {
+    padding: 8px 6px !important;
+  }
+  
+  .inventory-table-container .ant-table-thead > tr > th {
+    padding: 6px 6px !important;
+    font-size: 12px;
+  }
+  
+  .inventory-table-container .ant-pagination {
+    margin: 16px 0;
+    padding: 0 8px;
+  }
+  
+  /* Touch-friendly interactions for mobile */
+  .inventory-table-container .ant-btn {
+    min-width: 32px;
+    height: 32px;
+    padding: 4px 8px;
+  }
+  
+  .inventory-table-container .ant-btn-sm {
+    min-width: 28px;
+    height: 28px;
+    padding: 2px 6px;
+  }
+  
+  /* Improve touch targets for mobile */
+  .inventory-table-container .ant-table-tbody > tr > td .ant-space {
+    justify-content: center;
+  }
+  
+  /* Better spacing for action buttons on mobile */
+  .inventory-table-container .ant-space-compact {
+    gap: 4px !important;
+  }
+}
+
+/* Tablets (landscape) and small desktops */
+@media (min-width: 769px) and (max-width: 992px) {
+  .inventory-table-container {
+    overflow-x: auto;
+  }
+  
+  .inventory-table-container .ant-table {
+    min-width: 1400px;
+    font-size: 13px;
+  }
+  
+  .inventory-table-container .ant-table-cell {
+    padding: 10px 8px !important;
+  }
+}
+
+/* Medium desktops */
+@media (min-width: 993px) and (max-width: 1200px) {
+  .inventory-table-container .ant-table {
+    width: 100%;
+    min-width: 1400px;
+    font-size: 14px;
+  }
+  
+  .inventory-table-container .ant-table-cell {
+    padding: 12px 10px !important;
+  }
+}
+
+/* Large desktops */
+@media (min-width: 1201px) and (max-width: 1600px) {
+  .inventory-table-container .ant-table {
+    width: 100%;
+    min-width: 1500px;
+    font-size: 14px;
+  }
+  
+  .inventory-table-container .ant-table-cell {
+    padding: 12px 12px !important;
+  }
+}
+
+/* Extra large screens */
+@media (min-width: 1601px) {
+  .inventory-table-container .ant-table {
+    min-width: unset;
+    width: 100%;
+    table-layout: auto;
+  }
+  
+  .inventory-table-container .ant-table-cell {
+    padding: 14px 16px !important;
+  }
+}
+
+/* Print styles */
+@media print {
+  .inventory-table-container {
+    overflow: visible !important;
+  }
+  
+  .inventory-table-container .ant-table {
+    min-width: unset !important;
+    font-size: 10px;
+  }
+  
+  .inventory-table-container .ant-pagination {
+    display: none !important;
+  }
+}
+
+/* Enhanced Inventory Reporting Styles */
+.dashboard-stats .stats-card {
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.dashboard-stats .stats-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.chart-container {
+  padding: 20px;
+  background-color: #fafafa;
+  border-radius: 8px;
+  box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.05);
+  min-height: 400px;
+}
+
+.ant-statistic-title {
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.65);
+  margin-bottom: 8px;
+}
+
+.ant-statistic-content-value {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.ant-statistic-content-suffix {
+  font-size: 16px;
+  color: rgba(0, 0, 0, 0.45);
+  margin-left: 4px;
+}
+
+@media print {
+  .chart-container {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  
+  .ant-tabs-nav {
+    display: none !important;
+  }
+  
+  .ant-card-head {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  
+  .ant-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: 1px solid #eee !important;
+  }
+}

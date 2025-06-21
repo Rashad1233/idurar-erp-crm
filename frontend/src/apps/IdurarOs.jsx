@@ -1,5 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
-
+import { Suspense, useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { selectAuth } from '@/redux/auth/selectors';
 import { AppContextProvider } from '@/context/appContext';
@@ -7,15 +6,15 @@ import PageLoader from '@/components/PageLoader';
 import AuthRouter from '@/router/AuthRouter';
 import Localization from '@/locale/Localization';
 import { notification } from 'antd';
+import { lazyWithErrorHandling } from '@/utils/lazyLoadHelper';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
-const ErpApp = lazy(() => import('./ErpApp'));
+const ErpApp = lazyWithErrorHandling(() => import('./ErpApp'));
 
 const DefaultApp = () => (
   <Localization>
     <AppContextProvider>
-      <Suspense fallback={<PageLoader />}>
-        <ErpApp />
-      </Suspense>
+      <ErpApp />
     </AppContextProvider>
   </Localization>
 );

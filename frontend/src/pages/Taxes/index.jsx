@@ -4,7 +4,7 @@ import useLanguage from '@/locale/useLanguage';
 
 import { Switch } from 'antd';
 import { CloseOutlined, CheckOutlined } from '@ant-design/icons';
-import CrudModule from '@/modules/CrudModule/CrudModule';
+import SimpleCrudModule from '@/modules/SimpleCrudModule';
 import TaxForm from '@/forms/TaxForm';
 
 export default function Taxes() {
@@ -113,12 +113,12 @@ export default function Taxes() {
     dataTableColumns,
     searchConfig,
     deleteModalLabels,
-  };
-  return (
-    <CrudModule
-      createForm={<TaxForm />}
-      updateForm={<TaxForm isUpdateForm={true} />}
-      config={config}
+  };  return (
+    <SimpleCrudModule
+      entity={entity}
+      dataTableColumns={dataTableColumns}
+      searchConfig={searchConfig}
+      entityDisplayLabels={deleteModalLabels}
     />
   );
 }

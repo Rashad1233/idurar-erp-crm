@@ -650,8 +650,25 @@ export const selectColor = {
   dimgray: '#696969',
   lightslategray: '#778899',
   slategray: '#708090',
-  darkslategray: '#2f4f4f',
-  black: '#000000',
+  darkslategray: '#2f4f4f',  black: '#000000',
 };
 
-export default color;
+// Function to get a random color from the list
+const getRandomColor = () => {
+  // Convert the color object to an array of keys
+  const colorKeys = Object.keys(color);
+  
+  // Get a random index
+  const randomIndex = Math.floor(Math.random() * colorKeys.length);
+  
+  // Return a random color
+  const randomColorKey = colorKeys[randomIndex];
+  return {
+    value: randomColorKey,
+    label: randomColorKey,
+    color: color[randomColorKey] || 'blue'
+  };
+};
+
+// Export both the color object and the function
+export { color as default, getRandomColor };

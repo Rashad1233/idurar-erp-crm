@@ -1,0 +1,83 @@
+/* Improved inventory table styling for better column visibility */
+
+/* Inventory table specific styling */
+.inventory-table-container .ant-table-container {
+  overflow-x: auto;
+}
+
+/* Ensure the table header sticks properly */
+.inventory-table-container .ant-table-header {
+  overflow: visible !important;
+  background: #fff;
+  z-index: 100;
+}
+
+/* Fix header text visibility */
+.inventory-table-container .ant-table-thead th.ant-table-cell {
+  white-space: nowrap;
+  background-color: #f0f2f5;
+  font-weight: 600;
+  padding: 12px 16px;
+  text-align: left;
+  vertical-align: middle;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+/* Improve the column sizing */
+.inventory-table-container .ant-table-tbody td.ant-table-cell {
+  padding: 8px 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Apply special widths to common columns */
+.inventory-table-container .ant-table-cell[data-column-key="inventoryNumber"] {
+  min-width: 180px;
+}
+
+.inventory-table-container .ant-table-cell[data-column-key="description"] {
+  min-width: 250px;
+}
+
+.inventory-table-container .ant-table-cell[data-column-key="physicalBalance"],
+.inventory-table-container .ant-table-cell[data-column-key="unitPrice"],
+.inventory-table-container .ant-table-cell[data-column-key="linePrice"] {
+  min-width: 120px;
+}
+
+.inventory-table-container .ant-table-cell[data-column-key="storageLocation"],
+.inventory-table-container .ant-table-cell[data-column-key="binLocation"] {
+  min-width: 150px;
+}
+
+/* Improve table tooltip visibility */
+.inventory-table-container .ant-tooltip {
+  max-width: 300px;
+}
+
+/* Fixed header when scrolling */
+.inventory-table-container .ant-table-sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+
+/* Table scroll customization */
+.inventory-table-container .ant-table-body {
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+}
+
+/* Improve visibility of table content on smaller screens */
+@media (max-width: 768px) {
+  .inventory-table-container .ant-table {
+    font-size: 12px;
+  }
+  
+  .inventory-table-container .ant-table-cell {
+    padding: 6px 8px !important;
+  }
+}

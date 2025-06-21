@@ -5,9 +5,25 @@ const dispatchSettingsData = (datas) => {
   const settingsCategory = {};
 
   datas.map((data) => {
+    // Parse the setting value based on its valueType
+    let parsedValue = data.settingValue;
+    
+    try {
+      // First try to parse as JSON (all values come as strings from the DB)
+      parsedValue = JSON.parse(data.settingValue);
+    } catch (e) {
+      // If JSON parsing fails, handle specific types
+      if (data.valueType === 'number') {
+        parsedValue = Number(data.settingValue) || 0;
+      } else if (data.valueType === 'boolean') {
+        parsedValue = data.settingValue === 'true';
+      }
+      // For string type, keep as is
+    }
+    
     settingsCategory[data.settingCategory] = {
       ...settingsCategory[data.settingCategory],
-      [data.settingKey]: data.settingValue,
+      [data.settingKey]: parsedValue,
     };
   });
 
@@ -107,8 +123,7 @@ export const settingsAction = {
           type: actionTypes.REQUEST_FAILED,
         });
       }
-    },
-  list:
+    },  list:
     ({ entity }) =>
     async (dispatch) => {
       dispatch({
@@ -126,8 +141,41 @@ export const settingsAction = {
           payload,
         });
       } else {
+        // Check if we have cached settings in localStorage as fallback
+        const cachedSettings = window.localStorage.getItem('settings');
+        if (cachedSettings) {
+          try {
+            const parsedSettings = JSON.parse(cachedSettings);
+            dispatch({
+              type: actionTypes.REQUEST_SUCCESS,
+              payload: parsedSettings,
+            });
+            return;
+          } catch (e) {
+            console.warn('Failed to parse cached settings:', e);
+          }
+        }
+        
+        // If no cached settings, use default settings
+        const defaultSettings = {
+          app_settings: {},
+          company_settings: {},
+          finance_settings: {},
+          crm_settings: {},
+          money_format_settings: {
+            default_currency_code: 'USD',
+            currency_symbol: '$',
+            currency_position: 'before',
+            decimal_sep: '.',
+            thousand_sep: ',',
+            cent_precision: 2,
+            zero_format: false
+          }
+        };
+        
         dispatch({
-          type: actionTypes.REQUEST_FAILED,
+          type: actionTypes.REQUEST_SUCCESS,
+          payload: defaultSettings,
         });
       }
     },

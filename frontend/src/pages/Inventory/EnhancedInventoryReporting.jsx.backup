@@ -1,0 +1,1561 @@
+import React, { useState, useEffect } from 'react';
+import { Card, Row, Col, Button, DatePicker, Select, Table, Tabs, Space, Typography, Radio, Spin, Alert, message, Statistic } from 'antd';
+import { 
+  BarChartOutlined, 
+  PieChartOutlined, 
+  LineChartOutlined, 
+  DownloadOutlined, 
+  PrinterOutlined,
+  WarningOutlined,
+  DollarOutlined,
+  ReloadOutlined
+} from '@ant-design/icons';
+import useLanguage from '@/locale/useLanguage';
+import { ErpLayout } from '@/layout';
+import dayjs from 'dayjs';
+import inventoryService from '@/services/inventoryService';
+import { 
+  BarChart, Bar, PieChart, Pie, LineChart, Line, 
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell, 
+  ResponsiveContainer, Sector, ReferenceLine 
+} from 'recharts';
+
+const { RangePicker } = DatePicker;
+const { Option } = Select;
+const { Title, Text } = Typography;
+const { TabPane } = Tabs;
+
+// Color palette for charts
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#8dd1e1', '#a4de6c', '#d0ed57'];
+
+export default function EnhancedInventoryReporting() {
+  const translate = useLanguage();
+  const [reportType, setReportType] = useState('stockLevel');
+  const [dateRange, setDateRange] = useState([dayjs().subtract(30, 'days'), dayjs()]);
+  const [chartType, setChartType] = useState('bar');
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState({
+    stockLevelData: [],
+    movementData: [],
+    valuationData: []
+  });
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [totalInventoryValue, setTotalInventoryValue] = useState(0);
+  const [totalInventoryItems, setTotalInventoryItems] = useState(0);
+  const [lowStockCount, setLowStockCount] = useState(0);
+  const [overStockCount, setOverStockCount] = useState(0);    // Load data on component mount
+  useEffect(() => {
+    loadReportData();
+  }, []);
+    const  loadReportData = async () => {
+    setLoading(true);
+    try {
+      // Attempt to load real data from the API
+      console.log('Loading summary metrics...');
+      const summaryResponse = await inventoryService.getInventorySummaryMetrics();
+      console.log('Summary response:', summaryResponse);
+      
+      if (summaryResponse && summaryResponse.success) {
+        // Use real summary metrics data
+        const summaryData = summaryResponse.data;
+        console.log('Using real summary data:', summaryData);
+        setTotalInventoryValue(summaryData.totalValue || 0);
+        setTotalInventoryItems(summaryData.totalItems || 0);
+        setLowStockCount(summaryData.lowStockCount || 0);
+        setOverStockCount(summaryData.overStockCount || 0);
+      } else {
+        console.warn('Failed to load summary metrics from API. Response:', summaryResponse);
+      }
+      
+      // Load report-specific data
+      console.log(`Loading report data for type: ${reportType}, date range:`, dateRange);
+      const reportResponse = await inventoryService.getInventoryReportData(
+        reportType, 
+        dateRange[0], 
+        dateRange[1]
+      );
+      console.log('Report response:', reportResponse);
+        if (reportResponse && reportResponse.success) {
+        // Use real report data if available
+        console.log('Using real report data from API');
+        setData(reportResponse.data);
+        
+        // If the report data includes overridden metrics, use those
+        if (reportResponse.data.metricOverrides) {
+          console.log('Using overridden metrics:', reportResponse.data.metricOverrides);
+          if (reportResponse.data.metricOverrides.lowStockCount !== undefined) {
+            setLowStockCount(reportResponse.data.metricOverrides.lowStockCount);
+          }
+          if (reportResponse.data.metricOverrides.overStockCount !== undefined) {
+            setOverStockCount(reportResponse.data.metricOverrides.overStockCount);
+          }
+          if (reportResponse.data.metricOverrides.totalItems !== undefined) {
+            setTotalInventoryItems(reportResponse.data.metricOverrides.totalItems);
+          }
+        }
+      } else {
+        // Fall back to mock data if API call fails
+        console.warn('Falling back to mock data due to API error');
+        // Using mock data for now
+        // This would be replaced with API calls to get real data
+        const stockLevelData = [
+          {
+            key: '1',
+            itemNumber: '10001',
+            description: 'Hydraulic Pump - 500PSI',
+            currentStock: 5,
+            minLevel: 10,
+            maxLevel: 50,
+            reorderPoint: 15,
+            value: 2253.75,
+            lastCountDate: '2025-05-25',
+            category: 'PUMP',
+            stockStatus: 'low'
+          },
+          {
+            key: '2',
+            itemNumber: '10034',
+            description: 'Pressure Gauge 0-1000PSI',
+            currentStock: 12,
+            minLevel: 5,
+            maxLevel: 20,
+            reorderPoint: 8,
+            value: 942.00,
+            lastCountDate: '2025-05-25',
+            category: 'INSTRUMENT',
+            stockStatus: 'normal'
+          },
+          {
+            key: '3',
+            itemNumber: '10089',
+            description: 'Control Valve - 2"',
+            currentStock: 4,
+            minLevel: 2,
+            maxLevel: 10,
+            reorderPoint: 3,
+            value: 1300.00,
+            lastCountDate: '2025-05-22',
+            category: 'VALVE',
+            stockStatus: 'normal'
+          },
+          {
+            key: '4',
+            itemNumber: '10102',
+            description: 'O-Ring Kit - Assorted',
+            currentStock: 8,
+            minLevel: 5,
+            maxLevel: 20,
+            reorderPoint: 5,
+            value: 367.92,
+            lastCountDate: '2025-05-23',
+            category: 'SEALS',
+            stockStatus: 'normal'
+          },
+          {
+            key: '5',
+            itemNumber: '10155',
+            description: 'Electrical Control Unit',
+            currentStock: 2,
+            minLevel: 1,
+            maxLevel: 5,
+            reorderPoint: 2,
+            value: 1200.00,
+            lastCountDate: '2025-05-25',
+            category: 'ELECTRICAL',
+            stockStatus: 'normal'
+          },
+          {
+            key: '6',
+            itemNumber: '10212',
+            description: 'Motor Controller',
+            currentStock: 25,
+            minLevel: 10,
+            maxLevel: 20,
+            reorderPoint: 15,
+            value: 5420.25,
+            lastCountDate: '2025-05-24',
+            category: 'ELECTRICAL',
+            stockStatus: 'over'
+          },
+          {
+            key: '7',
+            itemNumber: '10254',
+            description: 'Circuit Breaker - 30A',
+            currentStock: 3,
+            minLevel: 5,
+            maxLevel: 15,
+            reorderPoint: 7,
+            value: 765.30,
+            lastCountDate: '2025-05-26',
+            category: 'ELECTRICAL',
+            stockStatus: 'low'
+          },
+          {
+            key: '8',
+            itemNumber: '10305',
+            description: 'Bearing Assembly - LM25',
+            currentStock: 12,
+            minLevel: 5,
+            maxLevel: 15,
+            reorderPoint: 8,
+            value: 1875.60,
+            lastCountDate: '2025-05-25',
+            category: 'MECHANICAL',
+            stockStatus: 'normal'
+          }
+        ];
+        
+        const movementData = [
+          {
+            key: '1',
+            itemNumber: '10001',
+            description: 'Hydraulic Pump - 500PSI',
+            receipts: 2,
+            issues: 3,
+            returns: 0,
+            transfers: 1,
+            netChange: -2,
+            startingBalance: 7,
+            endingBalance: 5,
+            category: 'PUMP'
+          },
+          {
+            key: '2',
+            itemNumber: '10034',
+            description: 'Pressure Gauge 0-1000PSI',
+            receipts: 5,
+            issues: 2,
+            returns: 1,
+            transfers: 0,
+            netChange: 4,
+            startingBalance: 8,
+            endingBalance: 12,
+            category: 'INSTRUMENT'
+          },
+          {
+            key: '3',
+            itemNumber: '10089',
+            description: 'Control Valve - 2"',
+            receipts: 3,
+            issues: 2,
+            returns: 0,
+            transfers: 0,
+            netChange: 1,
+            startingBalance: 3,
+            endingBalance: 4,
+            category: 'VALVE'
+          },
+          {
+            key: '4',
+            itemNumber: '10102',
+            description: 'O-Ring Kit - Assorted',
+            receipts: 1,
+            issues: 4,
+            returns: 2,
+            transfers: 0,
+            netChange: -1,
+            startingBalance: 9,
+            endingBalance: 8,
+            category: 'SEALS'
+          },
+          {
+            key: '5',
+            itemNumber: '10155',
+            description: 'Electrical Control Unit',
+            receipts: 1,
+            issues: 1,
+            returns: 0,
+            transfers: 1,
+            netChange: -1,
+            startingBalance: 3,
+            endingBalance: 2,
+            category: 'ELECTRICAL'
+          },
+          {
+            key: '6',
+            itemNumber: '10212',
+            description: 'Motor Controller',
+            receipts: 10,
+            issues: 5,
+            returns: 0,
+            transfers: 0,
+            netChange: 5,
+            startingBalance: 20,
+            endingBalance: 25,
+            category: 'ELECTRICAL'
+          }
+        ];
+        
+        const valuationData = [
+          {
+            key: '1',
+            category: 'PUMP',
+            itemCount: 12,
+            totalValue: 15420.50,
+            avgValue: 1285.04,
+            percentOfTotal: 28.5
+          },
+          {
+            key: '2',
+            category: 'VALVE',
+            itemCount: 18,
+            totalValue: 12850.75,
+            avgValue: 713.93,
+            percentOfTotal: 23.7
+          },
+          {
+            key: '3',
+            category: 'ELECTRICAL',
+            itemCount: 25,
+            totalValue: 9875.25,
+            avgValue: 395.01,
+            percentOfTotal: 18.2
+          },
+          {
+            key: '4',
+            category: 'INSTRUMENT',
+            itemCount: 15,
+            totalValue: 7890.30,
+            avgValue: 526.02,
+            percentOfTotal: 14.6
+          },
+          {
+            key: '5',
+            category: 'SEALS',
+            itemCount: 30,
+            totalValue: 4590.45,
+            avgValue: 153.02,
+            percentOfTotal: 8.5
+          },
+          {
+            key: '6',
+            category: 'MECHANICAL',
+            itemCount: 10,
+            totalValue: 3540.25,
+            avgValue: 354.03,
+            percentOfTotal: 6.5
+          }
+        ];
+
+        // Calculate summary metrics
+        const totalValue = valuationData.reduce((sum, item) => sum + item.totalValue, 0);
+        const totalItems = valuationData.reduce((sum, item) => sum + item.itemCount, 0);
+        const lowStock = stockLevelData.filter(item => item.stockStatus === 'low').length;
+        const overStock = stockLevelData.filter(item => item.stockStatus === 'over').length;
+
+        setData({ stockLevelData, movementData, valuationData });
+        setTotalInventoryValue(totalValue);
+        setTotalInventoryItems(totalItems);
+        setLowStockCount(lowStock);
+        setOverStockCount(overStock);
+      }
+    } catch (error) {
+      console.error('Error loading report data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+        {
+          key: '2',
+          itemNumber: '10034',
+          description: 'Pressure Gauge 0-1000PSI',
+          currentStock: 12,
+          minLevel: 5,
+          maxLevel: 20,
+          reorderPoint: 8,
+          value: 942.00,
+          lastCountDate: '2025-05-25',
+          category: 'INSTRUMENT',
+          stockStatus: 'normal'
+        },
+        {
+          key: '3',
+          itemNumber: '10089',
+          description: 'Control Valve - 2"',
+          currentStock: 4,
+          minLevel: 2,
+          maxLevel: 10,
+          reorderPoint: 3,
+          value: 1300.00,
+          lastCountDate: '2025-05-22',
+          category: 'VALVE',
+          stockStatus: 'normal'
+        },
+        {
+          key: '4',
+          itemNumber: '10102',
+          description: 'O-Ring Kit - Assorted',
+          currentStock: 8,
+          minLevel: 5,
+          maxLevel: 20,
+          reorderPoint: 5,
+          value: 367.92,
+          lastCountDate: '2025-05-23',
+          category: 'SEALS',
+          stockStatus: 'normal'
+        },
+        {
+          key: '5',
+          itemNumber: '10155',
+          description: 'Electrical Control Unit',
+          currentStock: 2,
+          minLevel: 1,
+          maxLevel: 5,
+          reorderPoint: 2,
+          value: 1200.00,
+          lastCountDate: '2025-05-25',
+          category: 'ELECTRICAL',
+          stockStatus: 'normal'
+        },
+        {
+          key: '6',
+          itemNumber: '10212',
+          description: 'Motor Controller',
+          currentStock: 25,
+          minLevel: 10,
+          maxLevel: 20,
+          reorderPoint: 15,
+          value: 5420.25,
+          lastCountDate: '2025-05-24',
+          category: 'ELECTRICAL',
+          stockStatus: 'over'
+        },
+        {
+          key: '7',
+          itemNumber: '10254',
+          description: 'Circuit Breaker - 30A',
+          currentStock: 3,
+          minLevel: 5,
+          maxLevel: 15,
+          reorderPoint: 7,
+          value: 765.30,
+          lastCountDate: '2025-05-26',
+          category: 'ELECTRICAL',
+          stockStatus: 'low'
+        },
+        {
+          key: '8',
+          itemNumber: '10305',
+          description: 'Bearing Assembly - LM25',
+          currentStock: 12,
+          minLevel: 5,
+          maxLevel: 15,
+          reorderPoint: 8,
+          value: 1875.60,
+          lastCountDate: '2025-05-25',
+          category: 'MECHANICAL',
+          stockStatus: 'normal'
+        }
+      ];
+      
+      const movementData = [
+        {
+          key: '1',
+          itemNumber: '10001',
+          description: 'Hydraulic Pump - 500PSI',
+          receipts: 2,
+          issues: 3,
+          returns: 0,
+          transfers: 1,
+          netChange: -2,
+          startingBalance: 7,
+          endingBalance: 5,
+          category: 'PUMP'
+        },
+        {
+          key: '2',
+          itemNumber: '10034',
+          description: 'Pressure Gauge 0-1000PSI',
+          receipts: 5,
+          issues: 2,
+          returns: 1,
+          transfers: 0,
+          netChange: 4,
+          startingBalance: 8,
+          endingBalance: 12,
+          category: 'INSTRUMENT'
+        },
+        {
+          key: '3',
+          itemNumber: '10089',
+          description: 'Control Valve - 2"',
+          receipts: 3,
+          issues: 2,
+          returns: 0,
+          transfers: 0,
+          netChange: 1,
+          startingBalance: 3,
+          endingBalance: 4,
+          category: 'VALVE'
+        },
+        {
+          key: '4',
+          itemNumber: '10102',
+          description: 'O-Ring Kit - Assorted',
+          receipts: 1,
+          issues: 4,
+          returns: 2,
+          transfers: 0,
+          netChange: -1,
+          startingBalance: 9,
+          endingBalance: 8,
+          category: 'SEALS'
+        },
+        {
+          key: '5',
+          itemNumber: '10155',
+          description: 'Electrical Control Unit',
+          receipts: 1,
+          issues: 1,
+          returns: 0,
+          transfers: 1,
+          netChange: -1,
+          startingBalance: 3,
+          endingBalance: 2,
+          category: 'ELECTRICAL'
+        },
+        {
+          key: '6',
+          itemNumber: '10212',
+          description: 'Motor Controller',
+          receipts: 10,
+          issues: 5,
+          returns: 0,
+          transfers: 0,
+          netChange: 5,
+          startingBalance: 20,
+          endingBalance: 25,
+          category: 'ELECTRICAL'
+        }
+      ];
+      
+      const valuationData = [
+        {
+          key: '1',
+          category: 'PUMP',
+          itemCount: 12,
+          totalValue: 15420.50,
+          avgValue: 1285.04,
+          percentOfTotal: 28.5
+        },
+        {
+          key: '2',
+          category: 'VALVE',
+          itemCount: 18,
+          totalValue: 12850.75,
+          avgValue: 713.93,
+          percentOfTotal: 23.7
+        },
+        {
+          key: '3',
+          category: 'ELECTRICAL',
+          itemCount: 25,
+          totalValue: 9875.25,
+          avgValue: 395.01,
+          percentOfTotal: 18.2
+        },
+        {
+          key: '4',
+          category: 'INSTRUMENT',
+          itemCount: 15,
+          totalValue: 7890.30,
+          avgValue: 526.02,
+          percentOfTotal: 14.6
+        },
+        {
+          key: '5',
+          category: 'SEALS',
+          itemCount: 30,
+          totalValue: 4590.45,
+          avgValue: 153.02,
+          percentOfTotal: 8.5
+        },        {
+          key: '6',
+          category: 'MECHANICAL',
+          itemCount: 10,
+          totalValue: 3540.25,
+          avgValue: 354.03,
+          percentOfTotal: 6.5
+        }
+      ];
+
+      // Calculate summary metrics
+      const totalValue = valuationData.reduce((sum, item) => sum + item.totalValue, 0);
+      const totalItems = valuationData.reduce((sum, item) => sum + item.itemCount, 0);
+      const lowStock = stockLevelData.filter(item => item.stockStatus === 'low').length;
+      const overStock = stockLevelData.filter(item => item.stockStatus === 'over').length;
+      const overStock = stockLevelData.filter(item => item.stockStatus === 'over').length;
+      
+      setData({ stockLevelData, movementData, valuationData });
+      setTotalInventoryValue(totalValue);
+      setTotalInventoryItems(totalItems);
+      setLowStockCount(lowStock);
+      setOverStockCount(overStock);
+    } catch (error) {
+      console.error('Error loading report data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Handle date range change
+  const handleDateRangeChange = (dates) => {
+    if (dates && dates.length === 2) {
+      setDateRange(dates);
+      // Reload the data with the new date range
+      loadReportData();
+    }
+  };
+  
+  // Handle report type change
+  const handleReportTypeChange = (value) => {
+    setReportType(value);
+    setActiveIndex(0); // Reset active index for pie chart
+    // Reload data with the new report type
+    loadReportData();
+  };
+  
+  // Handle chart type change
+  const handleChartTypeChange = (e) => {
+    setChartType(e.target.value);
+  };
+    // Handle export to Excel
+  const handleExportExcel = async () => {
+    try {
+      message.loading({ content: 'Exporting report...', key: 'exportMessage' });
+      
+      const exportResponse = await inventoryService.exportInventoryReport(
+        reportType,
+        dateRange[0],
+        dateRange[1],
+        'excel',
+        { chartType }
+      );
+      
+      if (exportResponse.success) {
+        message.success({ content: 'Report exported to Excel successfully', key: 'exportMessage' });
+      } else {
+        message.error({ content: 'Failed to export report', key: 'exportMessage' });
+      }
+    } catch (error) {
+      console.error('Error exporting report:', error);
+      message.error({ content: 'Error exporting report', key: 'exportMessage' });
+    }
+  };
+  
+  // Handle print report
+  const handlePrintReport = () => {
+    window.print();
+  };
+  
+  // Custom pie chart active shape
+  const renderActiveShape = (props) => {
+    const { cx, cy, midAngle, innerRadius, outerRadius, startAngle, endAngle,
+      fill, payload, percent, value } = props;
+    const sin = Math.sin(-midAngle * Math.PI / 180);
+    const cos = Math.cos(-midAngle * Math.PI / 180);
+    const sx = cx + (outerRadius + 10) * cos;
+    const sy = cy + (outerRadius + 10) * sin;
+    const mx = cx + (outerRadius + 30) * cos;
+    const my = cy + (outerRadius + 30) * sin;
+    const ex = mx + (cos >= 0 ? 1 : -1) * 22;
+    const ey = my;
+    const textAnchor = cos >= 0 ? 'start' : 'end';
+  
+    return (
+      <g>
+        <text x={cx} y={cy} dy={8} textAnchor="middle" fill={fill}>
+          {payload.category}
+        </text>
+        <Sector
+          cx={cx}
+          cy={cy}
+          innerRadius={innerRadius}
+          outerRadius={outerRadius}
+          startAngle={startAngle}
+          endAngle={endAngle}
+          fill={fill}
+        />
+        <Sector
+          cx={cx}
+          cy={cy}
+          startAngle={startAngle}
+          endAngle={endAngle}
+          innerRadius={outerRadius + 6}
+          outerRadius={outerRadius + 10}
+          fill={fill}
+        />
+        <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={fill} fill="none" />
+        <circle cx={ex} cy={ey} r={2} fill={fill} stroke="none" />
+        <text x={ex + (cos >= 0 ? 1 : -1) * 12} y={ey} textAnchor={textAnchor} fill="#333">
+          {`$${value.toLocaleString()}`}
+        </text>
+        <text x={ex + (cos >= 0 ? 1 : -1) * 12} y={ey} dy={18} textAnchor={textAnchor} fill="#999">
+          {`(${(percent * 100).toFixed(2)}%)`}
+        </text>
+      </g>
+    );
+  };
+
+  // Handle pie chart hover
+  const onPieEnter = (_, index) => {
+    setActiveIndex(index);
+  };
+
+  // Column definitions for different report types
+  const stockLevelColumns = [
+    {
+      title: translate('Item Number'),
+      dataIndex: 'itemNumber',
+      key: 'itemNumber',
+      sorter: (a, b) => a.itemNumber.localeCompare(b.itemNumber),
+    },
+    {
+      title: translate('Description'),
+      dataIndex: 'description',
+      key: 'description',
+      ellipsis: true,
+    },
+    {
+      title: translate('Current Stock'),
+      dataIndex: 'currentStock',
+      key: 'currentStock',
+      sorter: (a, b) => a.currentStock - b.currentStock,
+      render: (text, record) => {
+        const status = record.stockStatus || 
+          (record.currentStock <= record.minLevel ? 'low' : 
+           record.currentStock >= record.maxLevel ? 'over' : 'normal');
+        
+        const colors = {
+          low: '#f5222d',
+          normal: '#52c41a',
+          over: '#faad14'
+        };
+        
+        return (
+          <span style={{ color: colors[status], fontWeight: status !== 'normal' ? 'bold' : 'normal' }}>
+            {text}
+          </span>
+        );
+      }
+    },
+    {
+      title: translate('Min Level'),
+      dataIndex: 'minLevel',
+      key: 'minLevel',
+    },
+    {
+      title: translate('Max Level'),
+      dataIndex: 'maxLevel',
+      key: 'maxLevel',
+    },
+    {
+      title: translate('Value'),
+      dataIndex: 'value',
+      key: 'value',
+      render: (value) => `$${value.toFixed(2)}`,
+      sorter: (a, b) => a.value - b.value,
+    },
+    {
+      title: translate('Last Count'),
+      dataIndex: 'lastCountDate',
+      key: 'lastCountDate',
+    },
+    {
+      title: translate('Category'),
+      dataIndex: 'category',
+      key: 'category',
+      filters: [
+        { text: 'PUMP', value: 'PUMP' },
+        { text: 'VALVE', value: 'VALVE' },
+        { text: 'INSTRUMENT', value: 'INSTRUMENT' },
+        { text: 'SEALS', value: 'SEALS' },
+        { text: 'ELECTRICAL', value: 'ELECTRICAL' },
+        { text: 'MECHANICAL', value: 'MECHANICAL' }
+      ],
+      onFilter: (value, record) => record.category === value,
+    },
+  ];
+  
+  const movementColumns = [
+    {
+      title: translate('Item Number'),
+      dataIndex: 'itemNumber',
+      key: 'itemNumber',
+      sorter: (a, b) => a.itemNumber.localeCompare(b.itemNumber),
+    },
+    {
+      title: translate('Description'),
+      dataIndex: 'description',
+      key: 'description',
+      ellipsis: true,
+    },
+    {
+      title: translate('Category'),
+      dataIndex: 'category',
+      key: 'category',
+      filters: [
+        { text: 'PUMP', value: 'PUMP' },
+        { text: 'VALVE', value: 'VALVE' },
+        { text: 'INSTRUMENT', value: 'INSTRUMENT' },
+        { text: 'SEALS', value: 'SEALS' },
+        { text: 'ELECTRICAL', value: 'ELECTRICAL' }
+      ],
+      onFilter: (value, record) => record.category === value,
+    },
+    {
+      title: translate('Starting'),
+      dataIndex: 'startingBalance',
+      key: 'startingBalance',
+      sorter: (a, b) => a.startingBalance - b.startingBalance,
+    },
+    {
+      title: translate('Receipts'),
+      dataIndex: 'receipts',
+      key: 'receipts',
+      sorter: (a, b) => a.receipts - b.receipts,
+    },
+    {
+      title: translate('Issues'),
+      dataIndex: 'issues',
+      key: 'issues',
+      sorter: (a, b) => a.issues - b.issues,
+    },
+    {
+      title: translate('Returns'),
+      dataIndex: 'returns',
+      key: 'returns',
+      sorter: (a, b) => a.returns - b.returns,
+    },
+    {
+      title: translate('Transfers'),
+      dataIndex: 'transfers',
+      key: 'transfers',
+      sorter: (a, b) => a.transfers - b.transfers,
+    },
+    {
+      title: translate('Net Change'),
+      dataIndex: 'netChange',
+      key: 'netChange',
+      sorter: (a, b) => a.netChange - b.netChange,
+      render: (value) => (
+        <span style={{ 
+          color: value < 0 ? '#f5222d' : value > 0 ? '#52c41a' : 'inherit',
+          fontWeight: value !== 0 ? 'bold' : 'normal'
+        }}>
+          {value > 0 ? `+${value}` : value}
+        </span>
+      ),
+    },
+    {
+      title: translate('Ending'),
+      dataIndex: 'endingBalance',
+      key: 'endingBalance',
+      sorter: (a, b) => a.endingBalance - b.endingBalance,
+    },
+  ];
+  
+  const valuationColumns = [
+    {
+      title: translate('Category'),
+      dataIndex: 'category',
+      key: 'category',
+      sorter: (a, b) => a.category.localeCompare(b.category),
+    },
+    {
+      title: translate('Item Count'),
+      dataIndex: 'itemCount',
+      key: 'itemCount',
+      sorter: (a, b) => a.itemCount - b.itemCount,
+    },
+    {
+      title: translate('Total Value'),
+      dataIndex: 'totalValue',
+      key: 'totalValue',
+      render: (value) => `$${value.toFixed(2)}`,
+      sorter: (a, b) => a.totalValue - b.totalValue,
+    },
+    {
+      title: translate('Avg Value'),
+      dataIndex: 'avgValue',
+      key: 'avgValue',
+      render: (value) => `$${value.toFixed(2)}`,
+      sorter: (a, b) => a.avgValue - b.avgValue,
+    },
+    {
+      title: translate('% of Total'),
+      dataIndex: 'percentOfTotal',
+      key: 'percentOfTotal',
+      render: (value) => `${value}%`,
+      sorter: (a, b) => a.percentOfTotal - b.percentOfTotal,
+    },
+  ];
+
+  // Prepare chart data
+  const getChartData = () => {
+    switch (reportType) {
+      case 'stockLevel':
+        // Group by category for stock level chart
+        const stockByCategory = data.stockLevelData.reduce((acc, item) => {
+          const category = acc.find(cat => cat.category === item.category);
+          if (category) {
+            category.totalItems += 1;
+            category.totalStock += item.currentStock;
+            category.totalValue += item.value;
+          } else {
+            acc.push({
+              category: item.category,
+              totalItems: 1,
+              totalStock: item.currentStock,
+              totalValue: item.value
+            });
+          }
+          return acc;
+        }, []);
+        
+        // Stock status distribution
+        const stockStatusData = [
+          { name: 'Low Stock', value: lowStockCount, color: '#f5222d' },
+          { name: 'Normal', value: data.stockLevelData.length - lowStockCount - overStockCount, color: '#52c41a' },
+          { name: 'Overstock', value: overStockCount, color: '#faad14' }
+        ].filter(item => item.value > 0);
+        
+        return { stockByCategory, stockStatusData };
+        
+      case 'movement':
+        // Prepare movement chart data - sum by category
+        const movementByCategory = data.movementData.reduce((acc, item) => {
+          const category = acc.find(cat => cat.category === item.category);
+          if (category) {
+            category.receipts += item.receipts;
+            category.issues += item.issues;
+            category.returns += item.returns;
+            category.transfers += item.transfers;
+          } else {
+            acc.push({
+              category: item.category,
+              receipts: item.receipts,
+              issues: item.issues,
+              returns: item.returns,
+              transfers: item.transfers
+            });
+          }
+          return acc;
+        }, []);
+        
+        // Transaction type breakdown
+        const transactionData = data.movementData.reduce((acc, item) => {
+          acc.receipts += item.receipts;
+          acc.issues += item.issues;
+          acc.returns += item.returns;
+          acc.transfers += item.transfers;
+          return acc;
+        }, { receipts: 0, issues: 0, returns: 0, transfers: 0 });
+        
+        // Convert to array format for pie chart
+        const transactionTypes = [
+          { name: 'Receipts', value: transactionData.receipts, color: '#52c41a' },
+          { name: 'Issues', value: transactionData.issues, color: '#f5222d' },
+          { name: 'Returns', value: transactionData.returns, color: '#1890ff' },
+          { name: 'Transfers', value: transactionData.transfers, color: '#722ed1' }
+        ].filter(item => item.value > 0);
+        
+        return { movementByCategory, transactionTypes };
+        
+      case 'valuation':
+        return { 
+          valuationData: data.valuationData.sort((a, b) => b.totalValue - a.totalValue)
+        };
+        
+      default:
+        return {};
+    }
+  };
+
+  // Prepare trend data (mock data for now, would be replaced with API call in production)  const getTrendData = () => {
+    // In a real implementation, this would be fetched from the API
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+    
+    switch (reportType) {
+      case 'stockLevel':
+        return [
+          {
+            name: 'PUMP',
+            data: [5, 6, 4, 8, 7, 5],
+            months
+          },
+          {
+            name: 'VALVE',
+            data: [3, 4, 5, 4, 6, 4],
+            months
+          },
+          {
+            name: 'ELECTRICAL',
+            data: [7, 8, 9, 8, 10, 25],
+            months
+          },
+          {
+            name: 'INSTRUMENT',
+            data: [10, 9, 8, 9, 12, 12],
+            months
+          }
+        ];
+        
+      case 'movement':
+        return [
+          {
+            name: 'Receipts',
+            data: [12, 15, 10, 18, 20, 22],
+            months
+          },
+          {
+            name: 'Issues',
+            data: [8, 10, 12, 15, 16, 18],
+            months
+          },
+          {
+            name: 'Returns',
+            data: [2, 3, 1, 4, 2, 3],
+            months
+          }
+        ];
+        
+      case 'valuation':
+        return [
+          {
+            name: 'Total Value',
+            data: [45000, 47000, 48000, 51000, 53000, 54000],
+            months
+          },
+          {
+            name: 'Average Value',
+            data: [420, 425, 435, 450, 470, 480],
+            months
+          }
+        ];
+        
+      default:
+        return [];
+    }
+  };
+
+  // Render the appropriate chart based on the report and chart types
+  const renderChart = () => {
+    const chartData = getChartData();
+    
+    switch (reportType) {
+      case 'stockLevel':
+        if (chartType === 'bar') {
+          return (
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={chartData.stockByCategory}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="category" />
+                <YAxis />
+                <Tooltip formatter={(value) => value.toLocaleString()} />
+                <Legend />
+                <Bar dataKey="totalStock" name="Total Stock" fill="#1890ff" />
+                <Bar dataKey="totalItems" name="Number of Items" fill="#52c41a" />
+              </BarChart>
+            </ResponsiveContainer>
+          );
+        } else if (chartType === 'pie') {
+          return (
+            <Row gutter={16}>
+              <Col span={12}>
+                <div style={{ textAlign: 'center' }}>
+                  <Title level={5}>{translate('Stock Level by Category')}</Title>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        activeIndex={activeIndex}
+                        activeShape={renderActiveShape}
+                        data={chartData.stockByCategory}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="totalStock"
+                        nameKey="category"
+                        onMouseEnter={onPieEnter}
+                      >
+                        {chartData.stockByCategory.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </Col>
+              <Col span={12}>
+                <div style={{ textAlign: 'center' }}>
+                  <Title level={5}>{translate('Stock Status Distribution')}</Title>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={chartData.stockStatusData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {chartData.stockStatusData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value) => value.toLocaleString()} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </Col>
+            </Row>
+          );
+        } else if (chartType === 'line') {
+          // For line charts, we'd ideally have time-series data
+          // This is a simplified example
+          return (
+            <Alert
+              message={translate('Trend Data Required')}
+              description={translate('Line charts require time-series data. Please select Bar or Pie chart for this report type.')}
+              type="info"
+              showIcon
+            />
+          );
+        }
+        break;
+        
+      case 'movement':
+        if (chartType === 'bar') {
+          return (
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={chartData.movementByCategory}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="category" />
+                <YAxis />
+                <Tooltip formatter={(value) => value.toLocaleString()} />
+                <Legend />
+                <Bar dataKey="receipts" name="Receipts" fill="#52c41a" />
+                <Bar dataKey="issues" name="Issues" fill="#f5222d" />
+                <Bar dataKey="returns" name="Returns" fill="#1890ff" />
+                <Bar dataKey="transfers" name="Transfers" fill="#722ed1" />
+              </BarChart>
+            </ResponsiveContainer>
+          );
+        } else if (chartType === 'pie') {
+          return (
+            <Row gutter={16}>
+              <Col span={24}>
+                <div style={{ textAlign: 'center' }}>
+                  <Title level={5}>{translate('Transaction Type Distribution')}</Title>
+                  <ResponsiveContainer width="100%" height={350}>
+                    <PieChart>
+                      <Pie
+                        activeIndex={activeIndex}
+                        activeShape={renderActiveShape}
+                        data={chartData.transactionTypes}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={70}
+                        outerRadius={90}
+                        fill="#8884d8"
+                        dataKey="value"
+                        nameKey="name"
+                        onMouseEnter={onPieEnter}
+                      >
+                        {chartData.transactionTypes.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </Col>
+            </Row>
+          );
+        } else if (chartType === 'line') {
+          // For line charts, we'd ideally have time-series data
+          // This is a simplified example
+          return (
+            <Alert
+              message={translate('Trend Data Required')}
+              description={translate('Line charts require time-series data. Please select Bar or Pie chart for this report type.')}
+              type="info"
+              showIcon
+            />
+          );
+        }
+        break;
+        
+      case 'valuation':
+        if (chartType === 'bar') {
+          return (
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={chartData.valuationData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="category" />
+                <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
+                <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" />
+                <Tooltip formatter={(value, name) => name === 'Total Value' ? `$${value.toLocaleString()}` : value} />
+                <Legend />
+                <Bar yAxisId="left" dataKey="totalValue" name="Total Value" fill="#8884d8" />
+                <Bar yAxisId="right" dataKey="itemCount" name="Item Count" fill="#82ca9d" />
+              </BarChart>
+            </ResponsiveContainer>
+          );
+        } else if (chartType === 'pie') {
+          return (
+            <ResponsiveContainer width="100%" height={400}>
+              <PieChart>
+                <Pie
+                  activeIndex={activeIndex}
+                  activeShape={renderActiveShape}
+                  data={chartData.valuationData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={80}
+                  outerRadius={120}
+                  fill="#8884d8"
+                  dataKey="totalValue"
+                  nameKey="category"
+                  onMouseEnter={onPieEnter}
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+                  labelLine={false}
+                >
+                  {chartData.valuationData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}                </Pie>
+                <Tooltip formatter={(value) => `$${value.toLocaleString()}`} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          );
+        } else if (chartType === 'line') {
+          const trendData = getTrendData();
+          
+          if (trendData.length > 0) {
+            return (
+              <ResponsiveContainer width="100%" height={400}>
+                <LineChart>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis 
+                    dataKey="month" 
+                    type="category"
+                    allowDuplicatedCategory={false}
+                  />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  {trendData.map(s => (
+                    <Line 
+                      dataKey="value"
+                      data={s.data.map((value, index) => ({
+                        month: s.months[index],
+                        value: value
+                      }))}
+                      name={s.name}
+                      key={s.name}
+                      stroke={COLORS[trendData.indexOf(s) % COLORS.length]}
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            );
+          } else {
+            return (
+              <Alert
+                message={translate('Trend Data Required')}
+                description={translate('Line charts require time-series data. Please select Bar or Pie chart for this report type.')}
+                type="info"
+                showIcon
+              />
+            );
+          }
+        }
+        break;
+    }
+    
+    return (
+      <div style={{ textAlign: 'center', padding: '40px 0' }}>
+        <Title level={4}>{translate('No Chart Available')}</Title>
+        <p>{translate('Please select a different report or chart type.')}</p>
+      </div>
+    );
+  };
+
+  // Render the component
+  return (
+    <ErpLayout>
+      <Card 
+        title={translate('Inventory Reporting & Analytics')}
+        extra={
+          <Button
+            type="primary"
+            icon={<ReloadOutlined />}
+            onClick={loadReportData}
+            loading={loading}
+          >
+            {translate('Refresh Data')}
+          </Button>
+        }
+      >
+        <Spin spinning={loading}>
+          {/* KPI Cards */}
+          <Row gutter={16} className="dashboard-stats">
+            <Col xs={24} sm={12} md={6}>
+              <Card className="stats-card" style={{ background: '#e6f7ff', marginBottom: 16 }}>
+                <Statistic
+                  title={translate('Total Inventory Value')}
+                  value={totalInventoryValue}
+                  precision={2}
+                  prefix="$"
+                  valueStyle={{ color: '#0050b3' }}
+                  suffix=""
+                />
+                <div>
+                  <DollarOutlined style={{ fontSize: 24, color: '#0050b3' }} />
+                  <span style={{ marginLeft: 8 }}>{totalInventoryItems} {translate('Total Items')}</span>
+                </div>
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Card className="stats-card" style={{ background: '#fff2e8', marginBottom: 16 }}>
+                <Statistic
+                  title={translate('Low Stock Items')}
+                  value={lowStockCount}
+                  valueStyle={{ color: '#d4380d' }}
+                  suffix={`/ ${totalInventoryItems}`}
+                />
+                <div>
+                  <WarningOutlined style={{ fontSize: 24, color: '#d4380d' }} />
+                  <span style={{ marginLeft: 8 }}>{translate('Require Attention')}</span>
+                </div>
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Card className="stats-card" style={{ background: '#fcffe6', marginBottom: 16 }}>
+                <Statistic
+                  title={translate('Overstock Items')}
+                  value={overStockCount}
+                  valueStyle={{ color: '#7cb305' }}
+                  suffix={`/ ${totalInventoryItems}`}
+                />
+                <div>
+                  <WarningOutlined style={{ fontSize: 24, color: '#7cb305' }} />
+                  <span style={{ marginLeft: 8 }}>{translate('Excess Inventory')}</span>
+                </div>
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Card className="stats-card" style={{ background: '#f9f0ff', marginBottom: 16 }}>
+                <Statistic
+                  title={translate('Average Item Value')}
+                  value={(totalInventoryValue / (totalInventoryItems || 1)).toFixed(2)}
+                  precision={2}
+                  prefix="$"
+                  valueStyle={{ color: '#531dab' }}
+                />
+                <div>
+                  <DollarOutlined style={{ fontSize: 24, color: '#531dab' }} />
+                  <span style={{ marginLeft: 8 }}>{translate('Per Inventory Item')}</span>
+                </div>
+              </Card>
+            </Col>
+          </Row>
+
+          {/* Filter controls */}
+          <Row gutter={16} style={{ marginBottom: 16 }}>
+            <Col xs={24} sm={12} md={6}>
+              <label>{translate('Report Type')}</label>
+              <Select 
+                style={{ width: '100%' }} 
+                value={reportType} 
+                onChange={handleReportTypeChange}
+              >
+                <Option value="stockLevel">{translate('Stock Levels')}</Option>
+                <Option value="movement">{translate('Inventory Movement')}</Option>
+                <Option value="valuation">{translate('Inventory Valuation')}</Option>
+              </Select>
+            </Col>
+            <Col xs={24} sm={12} md={10}>
+              <label>{translate('Date Range')}</label>
+              <RangePicker 
+                style={{ width: '100%' }} 
+                value={dateRange}
+                onChange={handleDateRangeChange}
+              />
+            </Col>
+            <Col xs={24} md={8}>
+              <div style={{ marginTop: 24, textAlign: 'right' }}>
+                <Space>
+                  <Button
+                    type="primary"
+                    onClick={handleExportExcel}
+                    icon={<DownloadOutlined />}
+                  >
+                    {translate('Export to Excel')}
+                  </Button>
+                  <Button
+                    onClick={handlePrintReport}
+                    icon={<PrinterOutlined />}
+                  >
+                    {translate('Print')}
+                  </Button>
+                </Space>
+              </div>
+            </Col>
+          </Row>
+            <Tabs defaultActiveKey="chart">
+            <TabPane 
+              tab={<span><BarChartOutlined /> {translate('Charts')}</span>}
+              key="chart"
+            >
+              <div style={{ marginBottom: 16 }}>
+                <Radio.Group value={chartType} onChange={handleChartTypeChange}>
+                  <Radio.Button value="bar">{translate('Bar Chart')}</Radio.Button>
+                  <Radio.Button value="pie">{translate('Pie Chart')}</Radio.Button>
+                  <Radio.Button value="line">{translate('Line Chart')}</Radio.Button>
+                </Radio.Group>
+              </div>
+              
+              <div className="chart-container" style={{ minHeight: 400, backgroundColor: '#fafafa', padding: 16, borderRadius: 8 }}>
+                {renderChart()}
+              </div>
+            </TabPane>
+            <TabPane 
+              tab={<span><BarChartOutlined /> {translate('Table')}</span>}
+              key="table"
+            >
+              <Table
+                columns={
+                  reportType === 'stockLevel' ? stockLevelColumns :
+                  reportType === 'movement' ? movementColumns :
+                  valuationColumns
+                }
+                dataSource={
+                  reportType === 'stockLevel' ? data.stockLevelData :
+                  reportType === 'movement' ? data.movementData :
+                  data.valuationData
+                }
+                loading={loading}
+                pagination={{ pageSize: 10 }}
+                scroll={{ x: 1000 }}
+                summary={(pageData) => {
+                  if (reportType === 'stockLevel') {
+                    const totalValue = pageData.reduce((sum, item) => sum + item.value, 0);
+                    return (
+                      <>
+                        <Table.Summary.Row>
+                          <Table.Summary.Cell index={0} colSpan={5}><strong>{translate('Total')}</strong></Table.Summary.Cell>
+                          <Table.Summary.Cell index={5}><strong>${totalValue.toFixed(2)}</strong></Table.Summary.Cell>
+                          <Table.Summary.Cell index={6} colSpan={2}></Table.Summary.Cell>
+                        </Table.Summary.Row>
+                      </>
+                    );
+                  }
+                  
+                  if (reportType === 'valuation') {
+                    const totalValue = pageData.reduce((sum, item) => sum + item.totalValue, 0);
+                    const totalItems = pageData.reduce((sum, item) => sum + item.itemCount, 0);
+                    return (
+                      <>
+                        <Table.Summary.Row>
+                          <Table.Summary.Cell index={0}><strong>{translate('Total')}</strong></Table.Summary.Cell>
+                          <Table.Summary.Cell index={1}><strong>{totalItems}</strong></Table.Summary.Cell>
+                          <Table.Summary.Cell index={2}><strong>${totalValue.toFixed(2)}</strong></Table.Summary.Cell>
+                          <Table.Summary.Cell index={3} colSpan={2}></Table.Summary.Cell>
+                        </Table.Summary.Row>
+                      </>
+                    );
+                  }
+                  
+                  return null;                }}
+              />
+            </TabPane>
+            <TabPane 
+              tab={<span><LineChartOutlined /> {translate('Trends')}</span>}
+              key="trends"
+            >
+              <div className="chart-container" style={{ minHeight: 400, backgroundColor: '#fafafa', padding: 16, borderRadius: 8 }}>
+                <h3>{translate('Inventory Trends Over Time')}</h3>
+                <ResponsiveContainer width="100%" height={400}>
+                  <LineChart>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="month" 
+                      type="category"
+                      allowDuplicatedCategory={false}
+                    />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    {getTrendData().map(s => (
+                      <Line 
+                        dataKey="value"
+                        data={s.data.map((value, index) => ({
+                          month: s.months[index],
+                          value: value
+                        }))}
+                        name={s.name}
+                        key={s.name}
+                        stroke={COLORS[getTrendData().indexOf(s) % COLORS.length]}
+                      />
+                    ))}
+                  </LineChart>                </ResponsiveContainer>
+              </div>
+            </TabPane>
+          </Tabs>
+        </Spin>
+      </Card>
+    </ErpLayout>
+  );
+}
+
+// Custom Statistic component to display KPI metrics
+Typography.Statistic = ({ title, value, precision, prefix, suffix, valueStyle }) => {
+  const formattedValue = typeof value === 'number' && precision !== undefined
+    ? value.toFixed(precision)
+    : value;
+  
+  return (
+    <div className="ant-statistic">
+      <div className="ant-statistic-title">{title}</div>
+      <div className="ant-statistic-content">
+        <span className="ant-statistic-content-value" style={valueStyle}>
+          {prefix && <span className="ant-statistic-content-prefix">{prefix}</span>}
+          {formattedValue}
+          {suffix && <span className="ant-statistic-content-suffix">{suffix}</span>}
+        </span>
+      </div>
+    </div>
+  );
+};
+
+// Custom Statistic component implementation for compatibility
+const { Statistic: TypedStatistic } = Typography;
+
+// Custom Statistic component to display KPI metrics
+Typography.Statistic = ({ title, value, precision, prefix, suffix, valueStyle }) => {
+  const formattedValue = typeof value === 'number' && precision !== undefined
+    ? value.toFixed(precision)
+    : value;
+  
+  return (
+    <div className="ant-statistic">
+      <div className="ant-statistic-title">{title}</div>
+      <div className="ant-statistic-content">
+        <span className="ant-statistic-content-value" style={valueStyle}>
+          {prefix && <span className="ant-statistic-content-prefix">{prefix}</span>}
+          {formattedValue}
+          {suffix && <span className="ant-statistic-content-suffix">{suffix}</span>}
+        </span>
+      </div>
+    </div>
+  );
+};

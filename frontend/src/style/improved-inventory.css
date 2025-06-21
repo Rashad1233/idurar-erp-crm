@@ -1,0 +1,45 @@
+/* Additional styling for improved inventory table layout */
+
+/* Increase spacing between columns by adding horizontal margin */
+.inventory-table-container .ant-table-thead > tr > th::after,
+.inventory-table-container .ant-table-tbody > tr > td::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 10%;
+  height: 80%;
+  width: 1px;
+  background-color: #f0f0f0;
+}
+
+/* Improve table header clarity */
+.inventory-table-container .ant-table-thead > tr > th {
+  background-color: #f7f9fc !important;
+  border-bottom: 2px solid #e8e8e8 !important;
+}
+
+/* Improve hover effect on table rows */
+.inventory-table-container .ant-table-tbody > tr:hover > td {
+  background-color: #f0f7ff !important;
+}
+
+/* Add zebra striping for better readability */
+.inventory-table-container .ant-table-tbody > tr:nth-child(even) {
+  background-color: #fafafa;
+}
+
+/* Make table borders more visible */
+.inventory-table-container .ant-table {
+  border: 1px solid #e8e8e8;
+}
+
+/* Improve fixed column shadows */
+.inventory-table-container .ant-table-cell-fix-left-last::after,
+.inventory-table-container .ant-table-cell-fix-right-first::after {
+  box-shadow: inset 10px 0 8px -8px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Add minimum width to ensure columns aren't too narrow */
+.inventory-table-container .ant-table-cell {
+  min-width: 100px;
+}

@@ -1,103 +1,150 @@
-import { notification } from 'antd';
+import { App } from 'antd';
 import codeMessage from './codeMessage';
 
-const errorHandler = (error) => {
-  if (!navigator.onLine) {
-    notification.config({
-      duration: 15,
-      maxCount: 1,
-    });
-    // Code to execute when there is internet connection
-    notification.error({
-      message: 'No internet connection',
-      description: 'Cannot connect to the Internet, Check your internet network',
-    });
-    return {
-      success: false,
-      result: null,
-      message: 'Cannot connect to the server, Check your internet network',
-    };
-  }
+// Create a notification function that can be safely used outside components
+let notificationApi = null;
 
-  const { response } = error;
+export const setNotificationApi = (api) => {
+  notificationApi = api;
+};
 
-  if (!response) {
-    notification.config({
-      duration: 20,
-      maxCount: 1,
-    });
-    // Code to execute when there is no internet connection
-    // notification.error({
-    //   message: 'Problem connecting to server',
-    //   description: 'Cannot connect to the server, Try again later',
-    // });
-    return {
-      success: false,
-      result: null,
-      message: 'Cannot connect to the server, Contact your Account administrator',
-    };
-  }
-
-  if (response && response.data && response.data.jwtExpired) {
-    const result = window.localStorage.getItem('auth');
-    const jsonFile = window.localStorage.getItem('isLogout');
-    const { isLogout } = (jsonFile && JSON.parse(jsonFile)) || false;
-    window.localStorage.removeItem('auth');
-    window.localStorage.removeItem('isLogout');
-    if (result || isLogout) {
-      window.location.href = '/logout';
-    }
-  }
-
-  if (response && response.status) {
-    const message = response.data && response.data.message;
-
-    const errorText = message || codeMessage[response.status];
-    const { status, error } = response;
-    notification.config({
-      duration: 20,
-      maxCount: 2,
-    });
-    notification.error({
-      message: `Request error ${status}`,
-      description: errorText,
-    });
-
-    if (response?.data?.error?.name === 'JsonWebTokenError') {
-      window.localStorage.removeItem('auth');
-      window.localStorage.removeItem('isLogout');
-      window.location.href = '/logout';
-    } else return response.data;
+// Safe notification function that falls back to console.error if notification API isn't available
+const safeNotify = (type, config) => {
+  if (notificationApi) {
+    notificationApi[type](config);
   } else {
-    notification.config({
-      duration: 15,
-      maxCount: 1,
-    });
-
-    if (navigator.onLine) {
-      // Code to execute when there is internet connection
-      notification.error({
-        message: 'Problem connecting to server',
-        description: 'Cannot connect to the server, Try again later',
-      });
-      return {
-        success: false,
-        result: null,
-        message: 'Cannot connect to the server, Contact your Account administrator',
-      };
-    } else {
-      // Code to execute when there is no internet connection
-      notification.error({
-        message: 'No internet connection',
-        description: 'Cannot connect to the Internet, Check your internet network',
-      });
-      return {
-        success: false,
-        result: null,
-        message: 'Cannot connect to the server, Check your internet network',
-      };
-    }
+    console.error('Notification would have shown:', type, config);
   }
+};
+
+const errorHandler = (error, options = { notifications: true }) => {
+  console.error('API Error:', error);
+  
+  if (!error) {
+    return {
+      success: false,
+      result: null,
+      message: 'Unknown error occurred',
+    };
+  }
+
+  // Handle different types of errors
+  if (error.message === 'Network Error') {
+    const message = 'Cannot connect to the server. Please check if the backend server is running.';
+    if (options.notifications) {
+      safeNotify('error', {
+        message: 'Connection Error',
+        description: message,
+      });
+    }
+    
+    return {
+      success: false,
+      result: null,
+      message,
+    };
+  }
+  
+  // Handle CORS or connection refused errors
+  if (error.code === 'ERR_CONNECTION_REFUSED') {
+    const message = 'Unable to connect to the server. Please ensure the backend service is running.';
+    if (options.notifications) {
+      safeNotify('error', {
+        message: 'Connection Error',
+        description: message,
+      });
+    }
+    
+    return {
+      success: false,
+      result: null,
+      message: 'Network Error - Cannot connect to the server',
+    };
+  }
+
+  // Extract error response if available
+  let errorResponse = {
+    success: false,
+    result: null,
+    message: error.message || 'Unknown error occurred',
+  };
+  // Try to get more detailed error information from the response
+  if (error.response) {
+    const { status, data } = error.response;
+    
+    // Add status code to the error
+    errorResponse.status = status;
+    
+    // If the server returned an error message, use it
+    if (data) {
+      if (data.message) {
+        errorResponse.message = data.message;
+      }
+      
+      // Add error details if available for debugging
+      if (data.errorDetails) {
+        errorResponse.errorDetails = data.errorDetails;
+        console.log('Server error details:', data.errorDetails);
+      }
+      
+      if (data.error) {
+        errorResponse.error = data.error;
+      }
+      
+      // If there's validation errors
+      if (data.errors) {
+        errorResponse.errors = data.errors;
+      }
+    }    // Show notification based on status code
+    if (options.notifications) {
+      let description = errorResponse.message;
+      
+      switch (status) {
+        case 400:
+          safeNotify('error', {
+            message: 'Invalid Request',
+            description: description || 'The request was invalid.',
+          });
+          break;
+        case 401:
+          safeNotify('error', {
+            message: 'Unauthorized',
+            description: description || 'You are not authorized to perform this action.',
+          });
+          break;
+        case 403:
+          safeNotify('error', {
+            message: 'Forbidden',
+            description: description || 'You do not have permission to access this resource.',
+          });
+          break;
+        case 404:
+          safeNotify('error', {
+            message: 'Not Found',
+            description: description || 'The requested resource was not found.',
+          });
+          break;
+        case 500:
+          safeNotify('error', {
+            message: 'Server Error',
+            description: description || 'An internal server error occurred.',
+          });
+          break;
+        default:
+          safeNotify('error', {
+            message: `Error ${status}`,
+            description: description || 'An error occurred during the request.',
+          });
+      }
+    }  } else if (options.notifications) {
+    // Generic error notification if no response
+    safeNotify('error', {
+      message: 'Error',
+      description: errorResponse.message,
+    });
+  }
+
+  return errorResponse;
 };
 
 export default errorHandler;

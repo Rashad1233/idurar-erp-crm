@@ -1,0 +1,89 @@
+import React, { useState, useEffect } from 'react';
+import { Table, Empty, Spin, Switch, Alert } from 'antd';
+import { CheckOutlined, CloseOutlined } from '@ant-design/icons';
+
+// A simpler version of DataTable that only accepts direct props
+const SimpleDataTable = ({ 
+  columns = [], 
+  dataSource = [], 
+  isLoading = false, 
+  pagination = {
+    showSizeChanger: true,
+    showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
+    pageSize: 10
+  },  rowKey = '_id',
+  expandable,
+  onChange
+}) => {
+  const [error, setError] = useState(null);
+  
+  useEffect(() => {
+    // Reset error when data changes
+    setError(null);
+  }, [dataSource]);
+  
+  if (!columns || columns.length === 0) {
+    return <Empty description="No columns defined" />;
+  }
+  
+  // Process columns to ensure all tooltip-related props are removed
+  const processedColumns = React.useMemo(() => {
+    return columns.map(column => ({
+      ...column,
+      ellipsis: false,
+      tooltip: undefined,
+      showSorterTooltip: false,
+      title: typeof column.title === 'string' ? column.title : 
+             typeof column.title === 'function' ? column.title() : 
+             String(column.title)
+    }));
+  }, [columns]);
+  
+  // Create custom rendering components to prevent tooltip behavior
+  const components = React.useMemo(() => {
+    return {
+      header: {
+        cell: ({ children, ...restProps }) => {
+          // Remove any tooltip or title properties
+          const { title, tooltip, ...safeProps } = restProps;
+          return <th {...safeProps}>{children}</th>;
+        }
+      },
+      body: {
+        cell: ({ children, ...restProps }) => {
+          // Remove any tooltip or title properties
+          const { title, tooltip, ...safeProps } = restProps;
+          return <td {...safeProps}>{children}</td>;
+        },
+        row: ({ children, ...restProps }) => {
+          // Remove any tooltip or title properties
+          const { title, tooltip, ...safeProps } = restProps;
+          return <tr {...safeProps}>{children}</tr>;
+        }
+      }
+    };
+  }, []);
+    
+  return (
+    <Spin spinning={isLoading}>
+      {error && <Alert message={error} type="error" showIcon style={{ marginBottom: 16 }} />}      
+      <Table
+        columns={processedColumns}
+        dataSource={dataSource || []}
+        loading={isLoading}
+        pagination={pagination}
+        rowKey={rowKey}
+        expandable={expandable}
+        scroll={{ x: true }}
+        locale={{
+          emptyText: 'No data available'
+        }}
+        onChange={onChange}
+        components={components}
+        showSorterTooltip={false}
+      />
+    </Spin>
+  );
+};
+
+export default SimpleDataTable;

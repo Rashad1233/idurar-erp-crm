@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reliable Item Creation Form</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .response {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+            white-space: pre-wrap;
+        }
+        .success {
+            border-color: #4CAF50;
+            background-color: #e7f3e8;
+        }
+        .error {
+            border-color: #f44336;
+            background-color: #ffebee;
+        }
+    </style>
+</head>
+<body>
+    <h1>Reliable Item Creation Form</h1>
+    <p>This form uses the most reliable item creation route that has been fixed to match the actual database schema.</p>
+
+    <form id="itemForm">
+        <div class="form-group">
+            <label for="itemNumber">Item Number (optional - will be auto-generated)</label>
+            <input type="text" id="itemNumber" name="itemNumber" placeholder="e.g., ABC-123456">
+        </div>
+
+        <div class="form-group">
+            <label for="shortDescription">Short Description (required)</label>
+            <input type="text" id="shortDescription" name="shortDescription" required placeholder="Brief description">
+        </div>
+
+        <div class="form-group">
+            <label for="longDescription">Long Description</label>
+            <input type="text" id="longDescription" name="longDescription" placeholder="Detailed description">
+        </div>
+
+        <div class="form-group">
+            <label for="standardDescription">Standard Description</label>
+            <input type="text" id="standardDescription" name="standardDescription" placeholder="Standard description">
+        </div>
+
+        <div class="form-group">
+            <label for="manufacturerName">Manufacturer Name</label>
+            <input type="text" id="manufacturerName" name="manufacturerName" placeholder="Manufacturer name">
+        </div>
+
+        <div class="form-group">
+            <label for="manufacturerPartNumber">Manufacturer Part Number</label>
+            <input type="text" id="manufacturerPartNumber" name="manufacturerPartNumber" placeholder="Part number">
+        </div>
+
+        <div class="form-group">
+            <label for="equipmentCategory">Equipment Category</label>
+            <select id="equipmentCategory" name="equipmentCategory">
+                <option value="">Select Category</option>
+                <option value="VALVE">VALVE</option>
+                <option value="PUMP">PUMP</option>
+                <option value="MOTOR">MOTOR</option>
+                <option value="INSTRUMENT">INSTRUMENT</option>
+                <option value="FILTER">FILTER</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="equipmentSubCategory">Equipment Sub-Category</label>
+            <input type="text" id="equipmentSubCategory" name="equipmentSubCategory" placeholder="Sub-category">
+        </div>
+
+        <div class="form-group">
+            <label for="unspscCode">UNSPSC Code</label>
+            <input type="text" id="unspscCode" name="unspscCode" placeholder="e.g., 12131400">
+        </div>
+
+        <div class="form-group">
+            <label for="uom">Unit of Measure</label>
+            <select id="uom" name="uom">
+                <option value="EA">EA - Each</option>
+                <option value="KG">KG - Kilogram</option>
+                <option value="M">M - Meter</option>
+                <option value="L">L - Liter</option>
+                <option value="BOX">BOX - Box</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="criticality">Criticality</label>
+            <select id="criticality" name="criticality">
+                <option value="NO">NO - Not Critical</option>
+                <option value="LOW">LOW - Low Criticality</option>
+                <option value="MEDIUM">MEDIUM - Medium Criticality</option>
+                <option value="HIGH">HIGH - High Criticality</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="stockItem">Stock Item</label>
+            <select id="stockItem" name="stockItem">
+                <option value="Y">Y - Yes</option>
+                <option value="N">N - No</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="plannedStock">Planned Stock</label>
+            <select id="plannedStock" name="plannedStock">
+                <option value="N">N - No</option>
+                <option value="Y">Y - Yes</option>
+            </select>
+        </div>
+
+        <button type="submit">Create Item</button>
+    </form>
+
+    <div id="response" class="response" style="display: none;"></div>
+
+    <script>
+        document.getElementById('itemForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const formObject = {};
+            
+            formData.forEach((value, key) => {
+                formObject[key] = value;
+            });
+            
+            const responseDiv = document.getElementById('response');
+            responseDiv.style.display = 'block';
+            responseDiv.innerHTML = 'Sending request...';
+            responseDiv.className = 'response';
+            
+            try {
+                // First try the reliable route
+                const response = await fetch('http://localhost:8888/api/reliable-item-create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formObject)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    responseDiv.innerHTML = `
+                        <h3>Success! ✅</h3>
+                        <p>Item created successfully</p>
+                        <p>Item ID: ${result.data.id}</p>
+                        <p>Item Number: ${result.data.itemNumber}</p>
+                        <p>Full Response:</p>
+                        <pre>${JSON.stringify(result, null, 2)}</pre>
+                    `;
+                    responseDiv.className = 'response success';
+                } else {
+                    responseDiv.innerHTML = `
+                        <h3>Error! ❌</h3>
+                        <p>${result.message}</p>
+                        <p>Full Response:</p>
+                        <pre>${JSON.stringify(result, null, 2)}</pre>
+                    `;
+                    responseDiv.className = 'response error';
+                    
+                    // Try the ultra simple route as a fallback
+                    tryFallbackRoute(formObject, responseDiv);
+                }
+            } catch (error) {
+                responseDiv.innerHTML = `
+                    <h3>Error! ❌</h3>
+                    <p>Failed to send request: ${error.message}</p>
+                `;
+                responseDiv.className = 'response error';
+                
+                // Try the ultra simple route as a fallback
+                tryFallbackRoute(formObject, responseDiv);
+            }
+        });
+        
+        async function tryFallbackRoute(formObject, responseDiv) {
+            try {
+                responseDiv.innerHTML += '<p>Trying ultra simple route as fallback...</p>';
+                
+                const fallbackResponse = await fetch('http://localhost:8888/api/ultra-simple-item-create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formObject)
+                });
+                
+                const fallbackResult = await fallbackResponse.json();
+                
+                if (fallbackResult.success) {
+                    responseDiv.innerHTML = `
+                        <h3>Success with Fallback Route! ✅</h3>
+                        <p>Item created successfully using fallback route</p>
+                        <p>Item ID: ${fallbackResult.data.id}</p>
+                        <p>Item Number: ${fallbackResult.data.itemNumber}</p>
+                        <p>Full Response:</p>
+                        <pre>${JSON.stringify(fallbackResult, null, 2)}</pre>
+                    `;
+                    responseDiv.className = 'response success';
+                } else {
+                    responseDiv.innerHTML += `
+                        <p>Fallback route also failed:</p>
+                        <pre>${JSON.stringify(fallbackResult, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                responseDiv.innerHTML += `
+                    <p>Fallback route error: ${error.message}</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

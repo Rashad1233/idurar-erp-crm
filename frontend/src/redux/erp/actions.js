@@ -1,5 +1,6 @@
 import * as actionTypes from './types';
 import { request } from '@/request';
+import { ensureEntityIds } from '@/utils/entityUtils';
 
 export const erp = {
   resetState: () => (dispatch) => {
@@ -65,8 +66,7 @@ export const erp = {
           payload: null,
         });
       }
-    },
-  create:
+    },  create:
     ({ entity, jsonData }) =>
     async (dispatch) => {
       dispatch({
@@ -74,8 +74,11 @@ export const erp = {
         keyState: 'create',
         payload: null,
       });
+      
+      // Ensure entity references are valid UUIDs
+      const processedData = ensureEntityIds(jsonData);
 
-      let data = await request.create({ entity, jsonData });
+      let data = await request.create({ entity, jsonData: processedData });
 
       if (data.success === true) {
         dispatch({
@@ -94,8 +97,7 @@ export const erp = {
           payload: null,
         });
       }
-    },
-  recordPayment:
+    },  recordPayment:
     ({ entity, jsonData }) =>
     async (dispatch) => {
       dispatch({
@@ -103,8 +105,12 @@ export const erp = {
         keyState: 'recordPayment',
         payload: null,
       });
+      
+      // Ensure client and invoice IDs are valid UUIDs
+      const processedData = ensureEntityIds(jsonData);
+      console.log('Processing payment data:', processedData);
 
-      let data = await request.create({ entity, jsonData });
+      let data = await request.create({ entity, jsonData: processedData });
 
       if (data.success === true) {
         dispatch({
@@ -152,8 +158,7 @@ export const erp = {
           payload: null,
         });
       }
-    },
-  update:
+    },  update:
     ({ entity, id, jsonData }) =>
     async (dispatch) => {
       dispatch({
@@ -162,7 +167,10 @@ export const erp = {
         payload: null,
       });
 
-      let data = await request.update({ entity, id, jsonData });
+      // Ensure entity references are valid UUIDs
+      const processedData = ensureEntityIds(jsonData);
+      
+      let data = await request.update({ entity, id, jsonData: processedData });
 
       if (data.success === true) {
         dispatch({
@@ -264,7 +272,6 @@ export const erp = {
         });
       }
     },
-
   mail:
     ({ entity, jsonData }) =>
     async (dispatch) => {
@@ -273,8 +280,11 @@ export const erp = {
         keyState: 'mail',
         payload: null,
       });
+      
+      // Ensure entity references are valid UUIDs
+      const processedData = ensureEntityIds(jsonData);
 
-      const data = await request.mail({ entity, jsonData });
+      const data = await request.mail({ entity, jsonData: processedData });
 
       if (data.success === true) {
         dispatch({

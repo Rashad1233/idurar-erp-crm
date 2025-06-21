@@ -1,0 +1,205 @@
+import React, { useState, useEffect } from 'react';
+import { Table, Button, Input, Card, message, Tooltip, Space, Tag } from 'antd';
+import { ReloadOutlined, SearchOutlined, PlusOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
+
+import useLanguage from '@/locale/useLanguage';
+import inventoryService from '@/services/inventoryService';
+
+function Inventory() {
+  const [loading, setLoading] = useState(false);
+  const [inventoryItems, setInventoryItems] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const navigate = useNavigate();
+  const translate = useLanguage();
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const response = await inventoryService.getInventoryItems();
+      if (response.success) {
+        setInventoryItems(response.data);
+      } else {
+        message.error(response.message || 'Failed to load inventory data');
+      }
+    } catch (error) {
+      message.error('Error loading inventory data');
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const handleSearch = (value) => {
+    setSearchTerm(value);
+  };
+
+  const getFilteredData = () => {
+    if (!searchTerm) return inventoryItems;
+    
+    return inventoryItems.filter(item => {
+      const searchString = searchTerm.toLowerCase();
+      return (
+        (item.inventoryNumber && item.inventoryNumber.toLowerCase().includes(searchString)) ||
+        (item.itemMaster && item.itemMaster.itemNumber && item.itemMaster.itemNumber.toLowerCase().includes(searchString)) ||
+        (item.itemMaster && item.itemMaster.shortDescription && item.itemMaster.shortDescription.toLowerCase().includes(searchString)) ||
+        (item.warehouse && item.warehouse.toLowerCase().includes(searchString))
+      );
+    });
+  };
+
+  const getConditionTag = (condition) => {
+    const conditionMap = {
+      'A': { color: 'green', text: 'Excellent' },
+      'B': { color: 'blue', text: 'Good' },
+      'C': { color: 'orange', text: 'Fair' },
+      'D': { color: 'red', text: 'Poor' },
+      'E': { color: 'gray', text: 'Defective' }
+    };
+    
+    const conditionInfo = conditionMap[condition] || { color: 'default', text: condition };
+    return <Tag color={conditionInfo.color}>{conditionInfo.text}</Tag>;
+  };
+
+  const getReorderIndicator = (item) => {
+    if (item.physicalBalance <= item.minimumLevel) {
+      return (
+        <Tooltip title="Below minimum level">
+          <ExclamationCircleOutlined style={{ color: 'red', marginLeft: 8 }} />
+        </Tooltip>
+      );
+    }
+    return null;
+  };
+
+  const columns = [
+    {
+      title: translate('Inventory Number'),
+      dataIndex: 'inventoryNumber',
+      key: 'inventoryNumber',
+      sorter: (a, b) => a.inventoryNumber.localeCompare(b.inventoryNumber),
+    },
+    {
+      title: translate('Item Number'),
+      dataIndex: ['itemMaster', 'itemNumber'],
+      key: 'itemNumber',
+      sorter: (a, b) => {
+        const aNum = a.itemMaster?.itemNumber || '';
+        const bNum = b.itemMaster?.itemNumber || '';
+        return aNum.localeCompare(bNum);
+      },
+    },
+    {
+      title: translate('Description'),
+      dataIndex: ['itemMaster', 'shortDescription'],
+      key: 'description',
+      sorter: (a, b) => {
+        const aDesc = a.itemMaster?.shortDescription || '';
+        const bDesc = b.itemMaster?.shortDescription || '';
+        return aDesc.localeCompare(bDesc);
+      },
+    },
+    {
+      title: translate('Warehouse'),
+      dataIndex: 'warehouse',
+      key: 'warehouse',
+      sorter: (a, b) => a.warehouse.localeCompare(b.warehouse),
+    },
+    {
+      title: translate('Physical Balance'),
+      dataIndex: 'physicalBalance',
+      key: 'physicalBalance',
+      render: (text, record) => (
+        <span>
+          {text} {getReorderIndicator(record)}
+        </span>
+      ),
+      sorter: (a, b) => a.physicalBalance - b.physicalBalance,
+    },
+    {
+      title: translate('Unit Price'),
+      dataIndex: 'unitPrice',
+      key: 'unitPrice',
+      render: (price) => `$${parseFloat(price).toFixed(2)}`,
+      sorter: (a, b) => a.unitPrice - b.unitPrice,
+    },
+    {
+      title: translate('Line Value'),
+      dataIndex: 'linePrice',
+      key: 'linePrice',
+      render: (price) => `$${parseFloat(price).toFixed(2)}`,
+      sorter: (a, b) => a.linePrice - b.linePrice,
+    },
+    {
+      title: translate('Condition'),
+      dataIndex: 'condition',
+      key: 'condition',
+      render: (condition) => getConditionTag(condition),
+      sorter: (a, b) => a.condition.localeCompare(b.condition),
+    },
+    {
+      title: translate('Actions'),
+      key: 'actions',
+      render: (_, record) => (
+        <Space>
+          <Button type="primary" size="small" onClick={() => navigate(`/inventory/read/${record._id || record.id}`)}>
+            {translate('View')}
+          </Button>
+          <Button size="small" onClick={() => navigate(`/inventory/update/${record._id || record.id}`)}>
+            {translate('Edit')}
+          </Button>
+        </Space>
+      ),
+    },
+  ];
+
+  return (
+    <div>
+      <Card 
+        title={translate('Inventory Management')}
+        extra={
+          <Space>
+            <Input.Search
+              placeholder={translate('Search inventory')}
+              allowClear
+              onSearch={handleSearch}
+              onChange={(e) => handleSearch(e.target.value)}
+              style={{ width: 250 }}
+            />
+            <Button 
+              type="primary" 
+              icon={<PlusOutlined />}
+              onClick={() => navigate('/inventory/create')}
+            >
+              {translate('Add Inventory')}
+            </Button>
+            <Button 
+              icon={<ReloadOutlined />} 
+              onClick={loadData}
+              loading={loading}
+            />
+          </Space>
+        }
+      >
+        <Table
+          columns={columns}
+          dataSource={getFilteredData()}
+          rowKey={(record) => record._id || record.id}
+          loading={loading}
+          scroll={{ x: true }}
+          pagination={{ 
+            pageSize: 10,
+            showSizeChanger: true, 
+            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`
+          }}
+        />
+      </Card>
+    </div>
+  );
+}
+
+export default Inventory;

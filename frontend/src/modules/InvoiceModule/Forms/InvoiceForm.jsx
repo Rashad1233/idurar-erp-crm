@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import dayjs from 'dayjs';
-import { Form, Input, InputNumber, Button, Select, Divider, Row, Col } from 'antd';
+import { Form, Input, InputNumber, Button, Select, Divider, Row, Col, message, Alert } from 'antd';
 
 import { PlusOutlined } from '@ant-design/icons';
 
@@ -19,48 +19,116 @@ import calculate from '@/utils/calculate';
 import { useSelector } from 'react-redux';
 import SelectAsync from '@/components/SelectAsync';
 
-export default function InvoiceForm({ subTotal = 0, current = null }) {
-  const { last_invoice_number } = useSelector(selectFinanceSettings);
-
-  if (last_invoice_number === undefined) {
-    return <></>;
+// Error boundary component to catch rendering errors
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
   }
 
-  return <LoadInvoiceForm subTotal={subTotal} current={current} />;
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('Invoice form error:', error, errorInfo);
+    this.setState({ errorInfo });
+  }
+
+  render() {
+    if (this.state.hasError) {
+      // Render fallback UI
+      return (
+        <div>
+          <Alert
+            message="Error Rendering Form"
+            description={
+              <div>
+                <p>There was an error rendering the invoice form. This is likely due to invalid data format.</p>
+                <p>Error: {this.state.error?.toString()}</p>
+                <Button 
+                  type="primary" 
+                  onClick={() => window.location.href = '/invoice'}
+                >
+                  Return to Invoice List
+                </Button>
+              </div>
+            }
+            type="error"
+            showIcon
+          />
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
 }
 
-function LoadInvoiceForm({ subTotal = 0, current = null }) {
+export default function InvoiceForm({ subTotal = 0, current = null }) {
+  const financeSettings = useSelector(selectFinanceSettings) || {};
+  const last_invoice_number = financeSettings.last_invoice_number || 1000;
+  
+  // Always render the form, even if settings aren't loaded yet
+  return (
+    <ErrorBoundary>
+      <LoadInvoiceForm subTotal={subTotal} current={current} lastInvoiceNumber={last_invoice_number} />
+    </ErrorBoundary>
+  );
+}
+
+function LoadInvoiceForm({ subTotal = 0, current = null, lastInvoiceNumber = 1000 }) {
   const translate = useLanguage();
   const { dateFormat } = useDate();
-  const { last_invoice_number } = useSelector(selectFinanceSettings);
   const [total, setTotal] = useState(0);
   const [taxRate, setTaxRate] = useState(0);
   const [taxTotal, setTaxTotal] = useState(0);
   const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear());
-  const [lastNumber, setLastNumber] = useState(() => last_invoice_number + 1);
+  const [lastNumber, setLastNumber] = useState(() => Number(lastInvoiceNumber) + 1);
+  const [hasFormErrors, setHasFormErrors] = useState(false);
 
   const handelTaxChange = (value) => {
-    setTaxRate(value / 100);
+    if (value !== undefined && value !== null) {
+      setTaxRate(Number(value) / 100);
+    } else {
+      setTaxRate(0);
+    }
   };
 
   useEffect(() => {
     if (current) {
-      const { taxRate = 0, year, number } = current;
-      setTaxRate(taxRate / 100);
-      setCurrentYear(year);
-      setLastNumber(number);
+      try {
+        const { taxRate = 0, year, number } = current;
+        setTaxRate(Number(taxRate) / 100);
+        setCurrentYear(Number(year) || new Date().getFullYear());
+        setLastNumber(Number(number) || (Number(lastInvoiceNumber) + 1));
+      } catch (error) {
+        console.error('Error processing current invoice data:', error);
+      }
     }
-  }, [current]);
+  }, [current, lastInvoiceNumber]);
+
   useEffect(() => {
-    const currentTotal = calculate.add(calculate.multiply(subTotal, taxRate), subTotal);
-    setTaxTotal(Number.parseFloat(calculate.multiply(subTotal, taxRate)));
-    setTotal(Number.parseFloat(currentTotal));
+    try {
+      const numericSubTotal = Number(subTotal) || 0;
+      const numericTaxRate = Number(taxRate) || 0;
+      
+      const currentTotal = calculate.add(calculate.multiply(numericSubTotal, numericTaxRate), numericSubTotal);
+      setTaxTotal(Number.parseFloat(calculate.multiply(numericSubTotal, numericTaxRate)));
+      setTotal(Number.parseFloat(currentTotal));
+    } catch (error) {
+      console.error('Error calculating totals:', error);
+      setTaxTotal(0);
+      setTotal(0);
+    }
   }, [subTotal, taxRate]);
 
   const addField = useRef(false);
 
   useEffect(() => {
-    addField.current.click();
+    if (addField.current) {
+      addField.current.click();
+    }
   }, []);
 
   return (
@@ -73,6 +141,7 @@ function LoadInvoiceForm({ subTotal = 0, current = null }) {
             rules={[
               {
                 required: true,
+                message: 'Please select a client',
               },
             ]}
           >
@@ -94,6 +163,7 @@ function LoadInvoiceForm({ subTotal = 0, current = null }) {
             rules={[
               {
                 required: true,
+                message: 'Invoice number is required',
               },
             ]}
           >
@@ -108,6 +178,7 @@ function LoadInvoiceForm({ subTotal = 0, current = null }) {
             rules={[
               {
                 required: true,
+                message: 'Year is required',
               },
             ]}
           >
@@ -121,7 +192,8 @@ function LoadInvoiceForm({ subTotal = 0, current = null }) {
             name="status"
             rules={[
               {
-                required: false,
+                required: true,
+                message: 'Status is required',
               },
             ]}
             initialValue={'draft'}
@@ -144,6 +216,7 @@ function LoadInvoiceForm({ subTotal = 0, current = null }) {
               {
                 required: true,
                 type: 'object',
+                message: 'Date is required',
               },
             ]}
             initialValue={dayjs()}
@@ -159,6 +232,7 @@ function LoadInvoiceForm({ subTotal = 0, current = null }) {
               {
                 required: true,
                 type: 'object',
+                message: 'Expiration date is required',
               },
             ]}
             initialValue={dayjs().add(30, 'days')}
@@ -190,8 +264,19 @@ function LoadInvoiceForm({ subTotal = 0, current = null }) {
           <p>{translate('Total')}</p>
         </Col>
       </Row>
-      <Form.List name="items">
-        {(fields, { add, remove }) => (
+      <Form.List name="items" rules={[
+        {
+          validator: async (_, items) => {
+            if (!items || items.length === 0) {
+              setHasFormErrors(true);
+              return Promise.reject(new Error('At least one item is required'));
+            }
+            setHasFormErrors(false);
+            return Promise.resolve();
+          },
+        },
+      ]}>
+        {(fields, { add, remove }, { errors }) => (
           <>
             {fields.map((field) => (
               <ItemRow key={field.key} remove={remove} field={field} current={current}></ItemRow>
@@ -206,6 +291,7 @@ function LoadInvoiceForm({ subTotal = 0, current = null }) {
               >
                 {translate('Add field')}
               </Button>
+              <Form.ErrorList errors={errors} />
             </Form.Item>
           </>
         )}
@@ -215,7 +301,13 @@ function LoadInvoiceForm({ subTotal = 0, current = null }) {
         <Row gutter={[12, -5]}>
           <Col className="gutter-row" span={5}>
             <Form.Item>
-              <Button type="primary" htmlType="submit" icon={<PlusOutlined />} block>
+              <Button 
+                type="primary" 
+                htmlType="submit" 
+                icon={<PlusOutlined />} 
+                disabled={hasFormErrors}
+                block
+              >
                 {translate('Save')}
               </Button>
             </Form.Item>
@@ -243,6 +335,7 @@ function LoadInvoiceForm({ subTotal = 0, current = null }) {
               rules={[
                 {
                   required: true,
+                  message: 'Tax rate is required',
                 },
               ]}
             >

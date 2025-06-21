@@ -1,0 +1,82 @@
+/* Enhanced UNSPSC Input Component Styles */
+.enhanced-unspsc-input-container {
+  position: relative;
+  width: 100%;
+}
+
+.unspsc-search-dropdown {
+  position: absolute;
+  z-index: 1000;
+  width: 100%;
+  top: calc(100% + 4px);
+  box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.12), 
+              0 6px 16px 0 rgba(0, 0, 0, 0.08), 
+              0 9px 28px 8px rgba(0, 0, 0, 0.05);
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.unspsc-search-tabs .ant-tabs-nav {
+  margin-bottom: 12px;
+}
+
+.unspsc-search-results {
+  margin-top: 12px;
+  min-height: 200px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.unspsc-search-item, 
+.unspsc-favorite-item {
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 4px;
+  transition: background-color 0.3s;
+}
+
+.unspsc-search-item:hover,
+.unspsc-favorite-item:hover {
+  background-color: rgba(24, 144, 255, 0.1);
+}
+
+.unspsc-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+}
+
+.unspsc-search-instructions {
+  text-align: center;
+  padding: 20px 0;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.unspsc-search-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.unspsc-favorites {
+  min-height: 200px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* Fix for list item meta */
+.ant-list-item-meta-title {
+  margin-bottom: 0 !important;
+  line-height: 1.5;
+}
+
+/* Badge style adjustments */
+.unspsc-search-item .ant-badge,
+.unspsc-favorite-item .ant-badge {
+  font-family: monospace;
+  font-weight: 600;
+}

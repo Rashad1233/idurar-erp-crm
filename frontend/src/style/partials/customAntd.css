@@ -8,6 +8,30 @@
   background: #141414;
 }
 
+/* Search component styling */
+.search-container {
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.search-error {
+  color: #ff4d4f;
+  margin-left: 8px;
+  font-size: 14px;
+}
+
+/* Fix for blinking loading indicator */
+.search-container + .ant-spin-container {
+  min-height: 200px;
+}
+
+/* Smooth transition for search results */
+.ant-table-wrapper {
+  transition: opacity 0.2s ease;
+}
+
 .headerIcon .ant-dropdown-menu {
   border-radius: 6px;
   background: none;

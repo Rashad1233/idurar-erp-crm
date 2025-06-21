@@ -1,4 +1,4 @@
-import CrudModule from '@/modules/CrudModule/CrudModule';
+import SimpleCrudModule from '@/modules/SimpleCrudModule';
 import DynamicForm from '@/forms/DynamicForm';
 import { fields } from './config';
 
@@ -28,12 +28,20 @@ export default function Customer() {
     fields,
     searchConfig,
     deleteModalLabels,
-  };
+  };  // Generate columns from fields
+  const dataTableColumns = fields
+    .filter(field => !field.hideInTable)
+    .map(field => ({
+      title: translate(field.label || field.name),
+      dataIndex: field.name,
+    }));
+    
   return (
-    <CrudModule
-      createForm={<DynamicForm fields={fields} />}
-      updateForm={<DynamicForm fields={fields} />}
-      config={config}
+    <SimpleCrudModule
+      entity={entity}
+      dataTableColumns={dataTableColumns}
+      searchConfig={searchConfig}
+      entityDisplayLabels={deleteModalLabels}
     />
   );
 }

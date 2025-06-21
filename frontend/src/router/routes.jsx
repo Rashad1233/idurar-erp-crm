@@ -1,37 +1,57 @@
-import { lazy } from 'react';
+import React from 'react';
+import { lazyWithErrorHandling } from '@/utils/lazyLoadHelper';
 
 import { Navigate } from 'react-router-dom';
 
-const Logout = lazy(() => import('@/pages/Logout.jsx'));
-const NotFound = lazy(() => import('@/pages/NotFound.jsx'));
+import procurementRoutes from './procurementRoutes';
+import supplierRoutes from './supplierRoutes';
+import inventoryRoutes from './inventoryRoutes';
+import warehouseRoutes from './warehouseRoutes';
+import financeRoutes from './financeRoutes';
 
-const Dashboard = lazy(() => import('@/pages/Dashboard'));
-const Customer = lazy(() => import('@/pages/Customer'));
-const Invoice = lazy(() => import('@/pages/Invoice'));
-const InvoiceCreate = lazy(() => import('@/pages/Invoice/InvoiceCreate'));
+const Logout = lazyWithErrorHandling(() => import('@/pages/Logout.jsx'));
+const NotFound = lazyWithErrorHandling(() => import('@/pages/NotFound.jsx'));
 
-const InvoiceRead = lazy(() => import('@/pages/Invoice/InvoiceRead'));
-const InvoiceUpdate = lazy(() => import('@/pages/Invoice/InvoiceUpdate'));
-const InvoiceRecordPayment = lazy(() => import('@/pages/Invoice/InvoiceRecordPayment'));
-const Quote = lazy(() => import('@/pages/Quote/index'));
-const QuoteCreate = lazy(() => import('@/pages/Quote/QuoteCreate'));
-const QuoteRead = lazy(() => import('@/pages/Quote/QuoteRead'));
-const QuoteUpdate = lazy(() => import('@/pages/Quote/QuoteUpdate'));
-const Payment = lazy(() => import('@/pages/Payment/index'));
-const PaymentRead = lazy(() => import('@/pages/Payment/PaymentRead'));
-const PaymentUpdate = lazy(() => import('@/pages/Payment/PaymentUpdate'));
+const Dashboard = lazyWithErrorHandling(() => import('@/pages/Dashboard'));
+const Customer = lazyWithErrorHandling(() => import('@/pages/Customer'));
+const CustomerCreate = lazyWithErrorHandling(() => import('@/pages/Customer/CustomerCreate'));
+const CustomerRead = lazyWithErrorHandling(() => import('@/pages/Customer/CustomerRead'));
+const CustomerUpdate = lazyWithErrorHandling(() => import('@/pages/Customer/CustomerUpdate'));
+const Invoice = lazyWithErrorHandling(() => import('@/pages/Invoice'));
+const InvoiceCreate = lazyWithErrorHandling(() => import('@/pages/Invoice/InvoiceCreate'));
 
-const Settings = lazy(() => import('@/pages/Settings/Settings'));
-const PaymentMode = lazy(() => import('@/pages/PaymentMode'));
-const Taxes = lazy(() => import('@/pages/Taxes'));
+const InvoiceRead = lazyWithErrorHandling(() => import('@/pages/Invoice/InvoiceRead'));
+const InvoiceUpdate = lazyWithErrorHandling(() => import('@/pages/Invoice/InvoiceUpdate'));
+const InvoiceRecordPayment = lazyWithErrorHandling(() => import('@/pages/Invoice/InvoiceRecordPayment'));
+const Quote = lazyWithErrorHandling(() => import('@/pages/Quote/index'));
+const QuoteCreate = lazyWithErrorHandling(() => import('@/pages/Quote/QuoteCreate'));
+const QuoteRead = lazyWithErrorHandling(() => import('@/pages/Quote/QuoteRead'));
+const QuoteUpdate = lazyWithErrorHandling(() => import('@/pages/Quote/QuoteUpdate'));
+const Payment = lazyWithErrorHandling(() => import('@/pages/Payment/index'));
+const PaymentRead = lazyWithErrorHandling(() => import('@/pages/Payment/PaymentRead'));
+const PaymentUpdate = lazyWithErrorHandling(() => import('@/pages/Payment/PaymentUpdate'));
 
-const Profile = lazy(() => import('@/pages/Profile'));
+const Settings = lazyWithErrorHandling(() => import('@/pages/Settings/Settings'));
+const PaymentMode = lazyWithErrorHandling(() => import('@/pages/PaymentMode'));
+const PaymentModeCreate = lazyWithErrorHandling(() => import('@/pages/PaymentMode/PaymentModeCreate'));
+const PaymentModeRead = lazyWithErrorHandling(() => import('@/pages/PaymentMode/PaymentModeRead'));
+const PaymentModeUpdate = lazyWithErrorHandling(() => import('@/pages/PaymentMode/PaymentModeUpdate'));
+const Taxes = lazyWithErrorHandling(() => import('@/pages/Taxes'));
+const TaxesCreate = lazyWithErrorHandling(() => import('@/pages/Taxes/TaxesCreate'));
+const TaxesRead = lazyWithErrorHandling(() => import('@/pages/Taxes/TaxesRead'));
+const TaxesUpdate = lazyWithErrorHandling(() => import('@/pages/Taxes/TaxesUpdate'));
 
-const About = lazy(() => import('@/pages/About'));
+const Profile = lazyWithErrorHandling(() => import('@/pages/Profile'));
+
+const About = lazyWithErrorHandling(() => import('@/pages/About'));
 
 let routes = {
-  expense: [],
-  default: [
+  expense: [],  default: [
+    ...procurementRoutes,
+    ...supplierRoutes,
+    ...inventoryRoutes,
+    ...warehouseRoutes,
+    ...financeRoutes,
     {
       path: '/login',
       element: <Navigate to="/" />,
@@ -47,10 +67,21 @@ let routes = {
     {
       path: '/',
       element: <Dashboard />,
-    },
-    {
+    },    {
       path: '/customer',
       element: <Customer />,
+    },
+    {
+      path: '/customer/create',
+      element: <CustomerCreate />,
+    },
+    {
+      path: '/customer/read/:id',
+      element: <CustomerRead />,
+    },
+    {
+      path: '/customer/update/:id',
+      element: <CustomerUpdate />,
     },
 
     {
@@ -109,14 +140,36 @@ let routes = {
     {
       path: '/settings/edit/:settingsKey',
       element: <Settings />,
-    },
-    {
+    },    {
       path: '/payment/mode',
       element: <PaymentMode />,
     },
     {
+      path: '/payment/mode/create',
+      element: <PaymentModeCreate />,
+    },
+    {
+      path: '/payment/mode/read/:id',
+      element: <PaymentModeRead />,
+    },
+    {
+      path: '/payment/mode/update/:id',
+      element: <PaymentModeUpdate />,
+    },    {
       path: '/taxes',
       element: <Taxes />,
+    },
+    {
+      path: '/taxes/create',
+      element: <TaxesCreate />,
+    },
+    {
+      path: '/taxes/read/:id',
+      element: <TaxesRead />,
+    },
+    {
+      path: '/taxes/update/:id',
+      element: <TaxesUpdate />,
     },
 
     {

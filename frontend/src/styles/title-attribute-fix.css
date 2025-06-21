@@ -1,0 +1,12 @@
+/* Title attribute suppression */
+[title] {
+  pointer-events: none !important;
+}
+
+/* Prevent cell tooltips */
+.ant-table-cell {
+  pointer-events: none !important;
+}
+.ant-table-cell * {
+  pointer-events: auto !important;
+}

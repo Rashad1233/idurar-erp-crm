@@ -1,5 +1,6 @@
 import * as actionTypes from './types';
 import { request } from '@/request';
+import { ensureEntityIds } from '@/utils/entityUtils';
 
 export const erp = {
   resetState: () => (dispatch) => {
@@ -65,8 +66,7 @@ export const erp = {
           payload: null,
         });
       }
-    },
-  create:
+    },  create:
     ({ entity, jsonData }) =>
     async (dispatch) => {
       dispatch({
@@ -74,8 +74,11 @@ export const erp = {
         keyState: 'create',
         payload: null,
       });
+      
+      // Ensure entity references are valid UUIDs
+      const processedData = ensureEntityIds(jsonData);
 
-      let data = await request.create({ entity, jsonData });
+      let data = await request.create({ entity, jsonData: processedData });
 
       if (data.success === true) {
         dispatch({
@@ -94,8 +97,7 @@ export const erp = {
           payload: null,
         });
       }
-    },
-  createInvoice:
+    },  createInvoice:
     ({ entity, jsonData }) =>
     async (dispatch) => {
       dispatch({
@@ -103,8 +105,11 @@ export const erp = {
         keyState: 'createInvoice',
         payload: null,
       });
+      
+      // Ensure entity references are valid UUIDs
+      const processedData = ensureEntityIds(jsonData);
 
-      let data = await request.create({ entity, jsonData });
+      let data = await request.create({ entity, jsonData: processedData });
 
       if (data.success === true) {
         dispatch({
@@ -152,8 +157,7 @@ export const erp = {
           payload: null,
         });
       }
-    },
-  update:
+    },  update:
     ({ entity, id, jsonData }) =>
     async (dispatch) => {
       dispatch({
@@ -161,8 +165,11 @@ export const erp = {
         keyState: 'update',
         payload: null,
       });
+      
+      // Ensure entity references are valid UUIDs
+      const processedData = ensureEntityIds(jsonData);
 
-      let data = await request.update({ entity, id, jsonData });
+      let data = await request.update({ entity, id, jsonData: processedData });
 
       if (data.success === true) {
         dispatch({

@@ -14,9 +14,11 @@ const authReducer = (state = INITIAL_STATE, action) => {
         ...state,
         isLoggedIn: false,
         isLoading: true,
+      };    case actionTypes.REQUEST_FAILED:
+      return {
+        ...INITIAL_STATE,
+        error: action.error
       };
-    case actionTypes.REQUEST_FAILED:
-      return INITIAL_STATE;
 
     case actionTypes.REQUEST_SUCCESS:
       return {

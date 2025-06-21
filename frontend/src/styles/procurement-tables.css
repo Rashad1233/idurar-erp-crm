@@ -1,0 +1,165 @@
+/* Procurement Tables CSS - Enhanced scrolling and usability */
+
+.table-responsive {
+  overflow-x: auto;
+  position: relative;
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+/* Make the horizontal scrollbar more visible */
+.table-responsive::-webkit-scrollbar {
+  height: 8px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Fixed header styling */
+.ant-table-header {
+  background: #f5f5f5;
+  overflow: auto !important;
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* Add some zebra striping for better row distinction */
+.ant-table-tbody > tr:nth-child(odd) {
+  background-color: #fafafa;
+}
+
+.ant-table-tbody > tr:hover {
+  background-color: #e6f7ff;
+}
+
+/* Improve fixed columns visibility */
+.ant-table-cell.ant-table-cell-fix-left,
+.ant-table-cell.ant-table-cell-fix-right {
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Style for the column headers */
+.ant-table-thead > tr > th {
+  background-color: #f0f2f5;
+  font-weight: 600;
+  color: #333;
+  /* Prevent ellipsis and tooltip behavior */
+  overflow: visible !important;
+  white-space: normal !important;
+  text-overflow: clip !important;
+}
+
+/* Override Ant Design tooltip behavior */
+.ant-tooltip {
+  display: none !important;
+}
+
+/* Table column with tooltip styling */
+.table-column-with-tooltip {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  position: relative;
+  gap: 4px;
+}
+
+.table-column-with-tooltip .anticon {
+  margin-left: 4px;
+  font-size: 14px;
+  color: rgba(0,0,0,0.45);
+  cursor: help;
+  flex-shrink: 0;
+}
+
+.table-column-with-tooltip .anticon:hover {
+  color: #1890ff;
+}
+
+/* Tooltip icon wrapper styling */
+.tooltip-icon-wrapper {
+  display: inline-flex;
+  align-items: center;
+  cursor: help;
+  position: relative;
+}
+
+/* Make sure tooltips display for text that's truncated with ellipsis */
+.ant-table-cell {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Better visibility for sort icons */
+.ant-table-column-sorter {
+  color: #1890ff;
+}
+
+/* Better styling for pagination controls */
+.ant-pagination {
+  margin-top: 16px;
+  text-align: right;
+}
+
+/* Ensure the search container doesn't overflow */
+.search-container {
+  margin-bottom: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Scroll indicator to show there's more content to scroll */
+.scroll-indicator {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  opacity: 0.8;
+  transition: opacity 0.3s ease;
+}
+
+.scroll-indicator:hover {
+  opacity: 1;
+}
+
+/* Status tag styling */
+.ant-tag-default {
+  background-color: #f0f0f0;
+  border-color: #d9d9d9;
+  color: #666;
+}
+
+.ant-tag-processing {
+  background-color: #e6f7ff;
+  border-color: #91d5ff;
+  color: #1890ff;
+}
+
+.ant-tag-warning {
+  background-color: #fff7e6;
+  border-color: #ffd591;
+  color: #fa8c16;
+}
+
+.ant-tag-success {
+  background-color: #f6ffed;
+  border-color: #b7eb8f;
+  color: #52c41a;
+}
+
+.ant-tag-error {
+  background-color: #fff1f0;
+  border-color: #ffa39e;
+  color: #f5222d;
+}

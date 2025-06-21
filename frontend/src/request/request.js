@@ -14,13 +14,14 @@ function findKeyByPrefix(object, prefix) {
 }
 
 function includeToken() {
-  axios.defaults.baseURL = API_BASE_URL;
-
+  // Base URL is already configured in axiosConfig.js
   axios.defaults.withCredentials = true;
   const auth = storePersist.get('auth');
 
   if (auth) {
+    // Ensure the token is included in both header formats for compatibility
     axios.defaults.headers.common['Authorization'] = `Bearer ${auth.current.token}`;
+    axios.defaults.headers.common['x-auth-token'] = auth.current.token;
   }
 }
 
