@@ -1,0 +1,16 @@
+# Add these lines to your .env file in the root directory
+
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_SECURE=false
+EMAIL_USER=rashadyus10@gmail.com
+EMAIL_PASSWORD=hldk uywx bxvl sxqu
+EMAIL_FROM=ERP System <rashadyus10@gmail.com>
+
+# Instructions:
+# 1. Copy these lines to your .env file (create it if it doesn't exist)
+# 2. Restart the backend server: npm start (in backend directory)
+# 3. Test with: node test-email-config.js (in backend directory)
+
+# Security Note:
+# The .env file should be in your .gitignore to prevent committing credentials

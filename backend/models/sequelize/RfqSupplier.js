@@ -37,7 +37,7 @@ module.exports = (sequelize) => {
       allowNull: true,
     },
     status: {
-      type: DataTypes.ENUM('pending', 'sent', 'responded', 'selected', 'rejected'),
+      type: DataTypes.ENUM('pending', 'sent', 'responded', 'selected', 'rejected', 'approved'),
       defaultValue: 'pending',
     },
     sentAt: {
@@ -48,6 +48,15 @@ module.exports = (sequelize) => {
     },
     notes: {
       type: DataTypes.TEXT,
+    },
+    responseToken: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      unique: true,
+    },
+    tokenExpiry: {
+      type: DataTypes.DATE,
+      allowNull: true,
     },
   });
 

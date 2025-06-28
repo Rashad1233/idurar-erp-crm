@@ -5,6 +5,12 @@ const app = express();
 // Add basic middleware
 app.use(express.json());
 
+// Register simple item master routes FIRST
+console.log('Loading simple item master routes...');
+const simpleItemMasterRoutes = require('./routes/simpleItemMasterRoutes');
+app.use('/', simpleItemMasterRoutes);
+console.log('✅ Simple item master routes loaded and registered successfully');
+
 // Try to load and register inventory routes
 try {
   console.log('Loading inventory routes...');
@@ -26,8 +32,8 @@ try {
   });
   
   // Start a temporary server to test
-  const server = app.listen(9999, () => {
-    console.log('\n✅ Test server started on port 9999');
+  const server = app.listen(8888, () => {
+    console.log('\n✅ Test server started on port 8888');
     console.log('Testing route accessibility...');
     
     // Test the routes
@@ -36,7 +42,7 @@ try {
     // Test basic route
     const req = http.request({
       hostname: 'localhost',
-      port: 9999,
+      port: 8888,
       path: '/api/inventory',
       method: 'GET'
     }, (res) => {
@@ -56,3 +62,9 @@ try {
   console.error('❌ Error:', error.message);
   console.error('Stack:', error.stack);
 }
+
+// Register procurement routes (includes /item-master with auth)
+console.log('Loading procurement routes...');
+const procurementRoutes = require('./routes/procurementRoutes');
+app.use('/', procurementRoutes);
+console.log('✅ Procurement routes loaded and registered successfully');

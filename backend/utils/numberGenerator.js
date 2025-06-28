@@ -1,79 +1,89 @@
-/**
- * Number Generator Utility
- * Provides functions for generating sequential document numbers (e.g., PR-20250607-0001)
- */
-const { Op } = require('sequelize');
+const { RequestForQuotation, PurchaseRequisition, PurchaseOrder } = require('../models/sequelize');
 
 /**
- * Generates the next sequential number for a document type
- * Format: PREFIX-YYYYMMDD-XXXX
- * 
- * @param {string} prefix - Document type prefix (e.g., 'PR', 'RFQ', 'PO')
- * @param {object} model - Sequelize model to check for existing document numbers
- * @param {string} field - Field name to check for existing numbers (default: based on prefix)
- * @returns {string} The next sequential document number
+ * Generate automatic RFQ number
+ * Format: RFQ-YYYYMMDD-NNNN
  */
-const generateNextNumber = async (prefix, model, field = null) => {
-  // Determine which field to check based on the document type
-  const numberField = field || getFieldNameByPrefix(prefix);
+async function generateRFQNumber() {
+  const today = new Date();
+  const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
   
-  // Generate date part of the number (YYYYMMDD)
-  const now = new Date();
-  const datePart = now.getFullYear() +
-    (now.getMonth() + 1).toString().padStart(2, '0') +
-    now.getDate().toString().padStart(2, '0');
-  
-  // Find the latest document with the same prefix and date
-  const pattern = `${prefix}-${datePart}-%`;
-  
-  try {
-    // Query the database for the latest number
-    const latestDoc = await model.findOne({
-      where: {
-        [numberField]: {
-          [Op.like]: pattern
-        }
-      },
-      order: [[numberField, 'DESC']]
-    });
-    
-    let sequenceNumber = '0001';
-    
-    if (latestDoc) {
-      // Extract sequence number from the latest document
-      const lastNumber = latestDoc[numberField];
-      const lastSequence = lastNumber.split('-')[2];
-      
-      // Increment the sequence number
-      sequenceNumber = (parseInt(lastSequence, 10) + 1).toString().padStart(4, '0');
-    }
-    
-    return `${prefix}-${datePart}-${sequenceNumber}`;
-  } catch (error) {
-    console.error(`Error generating sequential number: ${error.message}`);
-    // Fallback to a timestamp-based number if there's an error
-    return `${prefix}-${datePart}-ERR${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
+  // Find the highest number for today
+  const todayRFQs = await RequestForQuotation.findAll({
+    where: {
+      rfqNumber: {
+        [require('sequelize').Op.like]: `RFQ-${dateStr}-%`
+      }
+    },
+    order: [['rfqNumber', 'DESC']],
+    limit: 1
+  });
+
+  let nextNumber = 1;
+  if (todayRFQs.length > 0) {
+    const lastNumber = todayRFQs[0].rfqNumber.split('-')[2];
+    nextNumber = parseInt(lastNumber) + 1;
   }
-};
+
+  return `RFQ-${dateStr}-${nextNumber.toString().padStart(4, '0')}`;
+}
 
 /**
- * Get the database field name based on document type prefix
- * 
- * @param {string} prefix - Document type prefix
- * @returns {string} Database field name
+ * Generate automatic PR number
+ * Format: PR-YYYYMMDD-NNNN
  */
-const getFieldNameByPrefix = (prefix) => {
-  const fieldMap = {
-    'PR': 'prNumber',
-    'RFQ': 'rfqNumber',
-    'PO': 'poNumber',
-    'INV': 'invoiceNumber',
-    'CON': 'contractNumber'
-  };
+async function generatePRNumber() {
+  const today = new Date();
+  const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
   
-  return fieldMap[prefix] || 'documentNumber';
-};
+  const todayPRs = await PurchaseRequisition.findAll({
+    where: {
+      prNumber: {
+        [require('sequelize').Op.like]: `PR-${dateStr}-%`
+      }
+    },
+    order: [['prNumber', 'DESC']],
+    limit: 1
+  });
+
+  let nextNumber = 1;
+  if (todayPRs.length > 0) {
+    const lastNumber = todayPRs[0].prNumber.split('-')[2];
+    nextNumber = parseInt(lastNumber) + 1;
+  }
+
+  return `PR-${dateStr}-${nextNumber.toString().padStart(4, '0')}`;
+}
+
+/**
+ * Generate automatic PO number
+ * Format: PO-YYYYMMDD-NNNN
+ */
+async function generatePONumber() {
+  const today = new Date();
+  const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+  
+  const todayPOs = await PurchaseOrder.findAll({
+    where: {
+      poNumber: {
+        [require('sequelize').Op.like]: `PO-${dateStr}-%`
+      }
+    },
+    order: [['poNumber', 'DESC']],
+    limit: 1
+  });
+
+  let nextNumber = 1;
+  if (todayPOs.length > 0) {
+    const lastNumber = todayPOs[0].poNumber.split('-')[2];
+    nextNumber = parseInt(lastNumber) + 1;
+  }
+
+  return `PO-${dateStr}-${nextNumber.toString().padStart(4, '0')}`;
+}
 
 module.exports = {
-  generateNextNumber
+  generateRFQNumber,
+  generatePRNumber,
+  generatePONumber
 };

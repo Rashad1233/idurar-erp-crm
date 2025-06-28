@@ -54,12 +54,15 @@ function RFQUpdate() {
     // Load RFQ details first
     request.read({ entity: 'rfq', id })
       .then(response => {
+        console.log('🔍 RFQ Read Response:', response);
         if (response.success) {
-          setRFQ(response.result);
+          const rfqData = response.result || response.data;
+          console.log('🔍 RFQ Data:', rfqData);
+          setRFQ(rfqData);
           
           // Set items
-          if (response.result.items && Array.isArray(response.result.items)) {
-            const items = response.result.items.map(item => ({
+          if (rfqData.items && Array.isArray(rfqData.items)) {
+            const items = rfqData.items.map(item => ({
               ...item,
               id: item._id || item.id,
               key: item._id || item.id
@@ -69,8 +72,8 @@ function RFQUpdate() {
           }
           
           // Set selected suppliers
-          if (response.result.suppliers && Array.isArray(response.result.suppliers)) {
-            const supplierIds = response.result.suppliers.map(s => 
+          if (rfqData.suppliers && Array.isArray(rfqData.suppliers)) {
+            const supplierIds = rfqData.suppliers.map(s => 
               s.supplierId || (s.supplier ? (s.supplier._id || s.supplier.id) : null)
             ).filter(Boolean);
             
@@ -78,8 +81,8 @@ function RFQUpdate() {
           }
             // Set form values
           form.setFieldsValue({
-            description: response.result.description || response.result.title,
-            dueDate: response.result.dueDate ? moment(response.result.dueDate) : null
+            description: rfqData.description || rfqData.title,
+            dueDate: rfqData.responseDeadline ? moment(rfqData.responseDeadline) : null
           });
         } else {
           setError('Failed to load RFQ details');
@@ -89,9 +92,10 @@ function RFQUpdate() {
         return request.list({ entity: 'client' });
       })
       .then(response => {
-        if (response && response.result) {
+        const clientData = response?.result || response?.data || [];
+        if (clientData.length > 0) {
           // Filter for suppliers
-          const suppliersList = response.result.filter(client => 
+          const suppliersList = clientData.filter(client => 
             client.type === 'supplier' || client.type === 'both'
           );
           

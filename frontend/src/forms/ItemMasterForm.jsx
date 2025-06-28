@@ -222,9 +222,46 @@ export default function ItemMasterForm({ isUpdateForm = false }) {
           <Select.Option value="L">L - Liter</Select.Option>
           <Select.Option value="ML">ML - Milliliter</Select.Option>
           <Select.Option value="PR">PR - Pair</Select.Option>
-          <Select.Option value="DZ">DZ - Dozen</Select.Option>
-          <Select.Option value="CTN">CTN - Carton</Select.Option>
+          <Select.Option value="DZ">DZ - Dozen</Select.Option>          <Select.Option value="CTN">CTN - Carton</Select.Option>
         </Select>
+      </Form.Item>
+      
+      <Form.Item
+        label={
+          <Space>
+            {translate('Quantity per kg')}
+            <Tooltip title={translate('Specify how many units per kilogram (for weight-based calculations)')}>
+              <InfoCircleOutlined />
+            </Tooltip>
+          </Space>
+        }
+        name="quantityPerKg"
+      >
+        <InputNumber
+          placeholder={translate('e.g., 10.5')}
+          min={0}
+          precision={4}
+          style={{ width: '100%' }}
+        />
+      </Form.Item>
+      
+      <Form.Item
+        label={
+          <Space>
+            {translate('Quantity per m³')}
+            <Tooltip title={translate('Specify how many units per cubic meter (for volume-based calculations)')}>
+              <InfoCircleOutlined />
+            </Tooltip>
+          </Space>
+        }
+        name="quantityPerCubicMeter"
+      >
+        <InputNumber
+          placeholder={translate('e.g., 25.75')}
+          min={0}
+          precision={4}
+          style={{ width: '100%' }}
+        />
       </Form.Item>
       
       <Form.Item

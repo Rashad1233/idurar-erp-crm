@@ -10,28 +10,42 @@ module.exports = (sequelize) => {
     },
     rfqItemId: {
       type: DataTypes.UUID,
-      allowNull: false,
+      allowNull: true, // Allow null for standalone items
     },
     rfqSupplierId: {
       type: DataTypes.UUID,
       allowNull: false,
+    },
+    itemDescription: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+    quantity: {
+      type: DataTypes.DECIMAL(15, 2),
+      allowNull: false,
+      defaultValue: 1.00,
     },
     unitPrice: {
       type: DataTypes.DECIMAL(15, 2),
       allowNull: false,
       defaultValue: 0.00,
     },
-    deliveryTime: {
+    totalPrice: {
+      type: DataTypes.DECIMAL(15, 2),
+      allowNull: false,
+      defaultValue: 0.00,
+    },
+    currency: {
+      type: DataTypes.STRING,
+      defaultValue: 'USD',
+    },
+    leadTime: {
       type: DataTypes.INTEGER, // Number of days
       allowNull: true,
     },
     deliveryDate: {
       type: DataTypes.DATE,
       allowNull: true,
-    },
-    currencyCode: {
-      type: DataTypes.STRING,
-      defaultValue: 'USD',
     },
     notes: {
       type: DataTypes.TEXT,

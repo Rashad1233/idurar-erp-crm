@@ -18,7 +18,7 @@ module.exports = (sequelize) => {
       allowNull: false,
     },
     status: {
-      type: DataTypes.ENUM('draft', 'sent', 'in_progress', 'completed', 'cancelled'),
+      type: DataTypes.ENUM('draft', 'sent', 'in_progress', 'completed', 'cancelled', 'rejected'),
       defaultValue: 'draft',
     },
     responseDeadline: {
@@ -31,9 +31,10 @@ module.exports = (sequelize) => {
     attachments: {
       type: DataTypes.JSON, // Store file paths as JSON array
       defaultValue: [],
-    },    purchaseRequisitionId: {
+    },
+    purchaseRequisitionId: {
       type: DataTypes.UUID,
-      allowNull: false,
+      allowNull: true,
     },
     createdById: {
       type: DataTypes.UUID,
@@ -55,8 +56,8 @@ module.exports = (sequelize) => {
     RequestForQuotation.belongsTo(models.PurchaseRequisition, { as: 'purchaseRequisition', foreignKey: 'purchaseRequisitionId' });
     RequestForQuotation.belongsTo(models.User, { as: 'createdBy', foreignKey: 'createdById' });
     RequestForQuotation.belongsTo(models.User, { as: 'updatedBy', foreignKey: 'updatedById' });
-    RequestForQuotation.hasMany(models.RfqSupplier, { as: 'suppliers' });
-    RequestForQuotation.hasMany(models.RfqItem, { as: 'items' });
+    RequestForQuotation.hasMany(models.RfqSupplier, { as: 'suppliers', foreignKey: 'requestForQuotationId' });
+    RequestForQuotation.hasMany(models.RfqItem, { as: 'items', foreignKey: 'requestForQuotationId' });
   };
 
   return RequestForQuotation;

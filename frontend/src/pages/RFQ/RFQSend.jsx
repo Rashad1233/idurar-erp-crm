@@ -46,12 +46,15 @@ function RFQSend() {
     
     request.read({ entity: 'rfq', id })
       .then(response => {
+        console.log('🔍 RFQ Read Response:', response);
         if (response.success) {
-          setRFQ(response.result);
+          const rfqData = response.result || response.data;
+          console.log('🔍 RFQ Data:', rfqData);
+          setRFQ(rfqData);
           
           // Process suppliers
-          if (response.result.suppliers && Array.isArray(response.result.suppliers)) {
-            const suppliers = response.result.suppliers.map(s => ({
+          if (rfqData.suppliers && Array.isArray(rfqData.suppliers)) {
+            const suppliers = rfqData.suppliers.map(s => ({
               id: s.id || s._id,
               supplierId: s.supplierId,
               status: s.status || 'pending',
@@ -66,12 +69,12 @@ function RFQSend() {
             setSelectAll(true);
               // Set default email subject and message
             form.setFieldsValue({
-              emailSubject: `Request for Quotation: ${response.result.number || 'RFQ'} - ${response.result.description || ''}`,
+              emailSubject: `Request for Quotation: ${rfqData.rfqNumber || 'RFQ'} - ${rfqData.description || ''}`,
               message: `Dear Supplier,
 
 We are pleased to invite you to submit a quotation for the following items:
 
-${response.result.items ? response.result.items.map(item => `- ${item.itemName} (Qty: ${item.quantity} ${item.uom})`).join('\n') : 'Items as per the attached RFQ'}
+${rfqData.items ? rfqData.items.map(item => `- ${item.description || item.itemName} (Qty: ${item.quantity} ${item.uom})`).join('\n') : 'Items as per the attached RFQ'}
 
 Please provide your best price and delivery timeline.
 
@@ -119,7 +122,7 @@ Thank you,
     }
   };
   
-  const handleSubmit = (values) => {
+  const handleSubmit = async (values) => {
     if (selectedSuppliers.length === 0) {
       message.warning(translate('Please select at least one supplier to send the RFQ to'));
       return;
@@ -128,27 +131,26 @@ Thank you,
     setSubmitting(true);
     setError(null);
     
-    request.patch({
-      entity: 'rfq/send',
-      id,
-      jsonData: {
+    try {
+      // Import the API client
+      const { default: apiClient } = await import('@/api/axiosConfig');
+      
+      // Make PUT request to the correct endpoint
+      const response = await apiClient.put(`procurement/rfq/${id}/send`, {
         supplierIds: selectedSuppliers,
         message: values.message,
         emailSubject: values.emailSubject
-      }
-    })
-      .then(response => {
-        message.success(translate('RFQ sent to suppliers successfully'));
-        navigate(`/rfq/read/${id}`);
-      })
-      .catch(err => {
-        console.error('Error sending RFQ:', err);
-        setError(err.message || 'Error sending RFQ');
-        message.error(translate('Failed to send RFQ to suppliers'));
-      })
-      .finally(() => {
-        setSubmitting(false);
       });
+      
+      message.success(translate('RFQ sent to suppliers successfully'));
+      navigate(`/rfq/read/${id}`);
+    } catch (err) {
+      console.error('Error sending RFQ:', err);
+      setError(err.response?.data?.message || err.message || 'Error sending RFQ');
+      message.error(translate('Failed to send RFQ to suppliers'));
+    } finally {
+      setSubmitting(false);
+    }
   };
   
   if (loading) {
@@ -285,6 +287,21 @@ Thank you,
           <Space>
             <Button onClick={() => navigate(`/rfq/read/${id}`)}>
               {translate('Cancel')}
+            </Button>
+            <Button 
+              onClick={() => {
+                // Open supplier approval for each supplier
+                if (rfqSuppliers.length > 0) {
+                  // For demo: open the first supplier's approval page
+                  const supplierId = rfqSuppliers[0].supplierId;
+                  navigate(`/rfq/supplier-approval/${id}/${supplierId}`);
+                } else {
+                  message.warning('No suppliers available for approval test.');
+                }
+              }}
+              style={{ marginRight: 8 }}
+            >
+              {translate('Test Supplier Approval')}
             </Button>
             <Button 
               type="primary" 

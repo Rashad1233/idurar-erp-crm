@@ -1,175 +1,181 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { 
-  Form, 
-  Input, 
-  Button, 
-  Select, 
-  DatePicker, 
-  Table, 
-  Card, 
-  Alert, 
-  Spin, 
+import {
+  Form,
+  Input,
+  Button,
+  Select,
+  DatePicker,
+  Table,
+  Card,
+  Alert,
+  Spin,
   Divider,
   Space,
   message,
   Typography,
-  Transfer
+  Transfer,
+  Tooltip,
 } from 'antd';
-import { PlusOutlined, WarningOutlined } from '@ant-design/icons';
+import { PlusOutlined } from '@ant-design/icons';
 import moment from 'moment';
 
 import useLanguage from '@/locale/useLanguage';
 import { request } from '@/request';
-import { normalizeSuppliers, prepareTransferDataSource } from '@/utils/supplierIdValidation';
-import { validateRfqFormData } from '@/utils/rfqValidation';
+import storePersist from '@/redux/storePersist';
 
 const { Option } = Select;
 const { TextArea } = Input;
 const { Title } = Typography;
 
-function RFQCreate() {
+const RFQCreate = () => {
   const [form] = Form.useForm();
   const navigate = useNavigate();
   const location = useLocation();
   const translate = useLanguage();
-  
+
+  // Helper function to create headers with optional authentication
+  const createHeaders = () => {
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+    
+    // Get auth token from Redux store (same as axiosConfig.js)
+    try {
+      const auth = storePersist.get('auth');
+      if (auth?.current?.token) {
+        headers['Authorization'] = `Bearer ${auth.current.token}`;
+        headers['x-auth-token'] = auth.current.token;
+      }
+    } catch (error) {
+      console.error('Error getting auth token:', error);
+    }
+    
+    return headers;
+  };
+
   const [loading, setLoading] = useState(false);
   const [prLoading, setPrLoading] = useState(false);
   const [error, setError] = useState(null);
-  
+
   const [purchaseRequisition, setPurchaseRequisition] = useState(null);
   const [prItems, setPrItems] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
-  const [selectedSuppliers, setSelectedSuppliers] = useState([]);
-  const [selectedItems, setSelectedItems] = useState([]);
-  const [supplierError, setSupplierError] = useState(null);
-  const [supplierWarnings, setSupplierWarnings] = useState([]);
+  const [targetKeys, setTargetKeys] = useState([]);
   const [manualItems, setManualItems] = useState([]);
-  
-  // Parse query params to get PR ID if provided
+  const [approvedPRs, setApprovedPRs] = useState([]);
+  const [selectedPRId, setSelectedPRId] = useState(null);
+
   const queryParams = new URLSearchParams(location.search);
   const prId = queryParams.get('prId');
-  
-  // Fetch PR data if PR ID is provided
-  useEffect(() => {
-    if (prId) {
+
+  const fetchApprovedPRs = useCallback(async () => {
+    try {
+      const response = await fetch('http://localhost:8888/api/supplier/approved-prs', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Approved PRs fetched:', data);
+        setApprovedPRs(data.result || data.data || []);
+      } else {
+        console.error('Failed to fetch approved PRs:', response.status);
+      }
+    } catch (err) {
+      console.error('Error fetching approved PRs:', err);
+    }
+  }, []);
+
+  const fetchPurchaseRequisition = useCallback(async () => {
+    if (prId || selectedPRId) {
       setPrLoading(true);
-      setError(null);
-      
-      console.log('DEBUG: Fetching PR with ID:', prId);
-      
-      request.read({ entity: 'purchase-requisition', id: prId })
-        .then(response => {
-          console.log('DEBUG: PR API Response:', response);
-          const result = response.result;
-          setPurchaseRequisition(result);
-          
-          // Set PR items
-          if (result.items && result.items.length > 0) {
-            console.log('DEBUG: PR Items received:', result.items);
-            setPrItems(result.items);
-            
-            // Select all items by default, handling both id and _id
-            const itemIds = result.items.map(item => item._id || item.id);
-            console.log('DEBUG: Selected item IDs:', itemIds);
-            setSelectedItems(itemIds);
-              // Set form fields
+      try {
+        const id = prId || selectedPRId;
+        // Use direct API call to get PR details
+        const response = await fetch(`http://localhost:8888/api/supplier/pr-details/${id}`, {
+          method: 'GET',
+          headers: createHeaders()
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            const { result } = data;
+            setPurchaseRequisition(result);
+            setPrItems(result.items || []);
             form.setFieldsValue({
-              description: result.description || `RFQ for ${result.number}`,
-              prId: result._id || result.id
+              description: result.description || `RFQ for PR #${result.number || result.prNumber}`,
+              prId: result._id || result.id,
             });
           } else {
-            console.error('DEBUG: No items found in the purchase requisition response:', result);
-            console.warn('DEBUG: PR object structure:', Object.keys(result));
-            setError('Purchase requisition has no items');
+            setError('Failed to load purchase requisition');
           }
-        })
-        .catch(err => {
-          console.error('DEBUG: Error loading purchase requisition:', err);
-          setError(err.message || 'Error loading purchase requisition');
-        })
-        .finally(() => {
-          setPrLoading(false);
-        });
-    }
-  }, [prId, form]);  // Load suppliers with improved ID handling
-  useEffect(() => {
-    setSupplierWarnings([]);
-    setSupplierError(null);
-    
-    request.list({ entity: 'client' })
-      .then(({ result }) => {
-        // Filter for suppliers (include those with type 'both' as well - they can be suppliers)
-        const suppliersList = result.filter(client => 
-          client.type === 'supplier' || client.type === 'both'
-        );
-        
-        console.log(`Found ${suppliersList.length} suppliers in total`);
-        
-        // Use our utility function to normalize suppliers
-        const { 
-          normalizedSuppliers, 
-          isValid, 
-          hasDuplicates, 
-          hasMissingIds,
-          errors 
-        } = normalizeSuppliers(suppliersList);
-        
-        if (!isValid) {
-          // Store errors/warnings but continue with normalized suppliers
-          if (hasMissingIds) {
-            setSupplierWarnings(prev => [...prev, 'Some suppliers are missing IDs. Temporary IDs have been assigned.']);
-          }
-          
-          if (hasDuplicates) {
-            setSupplierWarnings(prev => [...prev, 'Some suppliers have duplicate IDs. Unique IDs have been assigned.']);
-          }
-          
-          console.warn('Supplier validation issues:', errors);
+        } else {
+          setError('Failed to load purchase requisition');
         }
-        
-        setSuppliers(normalizedSuppliers);
-      })
-      .catch(error => {
-        console.error('Error loading suppliers:', error);
-        setSupplierError('Failed to load suppliers. Please refresh the page and try again.');
-      });
-  }, []);
-  const handleSupplierChange = (selectedTargetKeys) => {
-    // Enhanced validation to ensure they're not empty or undefined
-    const validKeys = [];
-    const invalidKeys = [];
-    
-    selectedTargetKeys.forEach(key => {
-      if (key && typeof key === 'string' && key.trim() !== '') {
-        validKeys.push(key);
-      } else {
-        invalidKeys.push(key);
+      } catch (err) {
+        setError(err.message || 'An error occurred while fetching the purchase requisition');
+      } finally {
+        setPrLoading(false);
       }
-    });
-    
-    if (validKeys.length !== selectedTargetKeys.length) {
-      console.warn(`Filtered out ${invalidKeys.length} invalid supplier keys:`, invalidKeys);
-      
-      // Log which suppliers are causing problems
-      const selectedSupplierNames = suppliers
-        .filter(s => selectedTargetKeys.includes(s._id || s.id))
-        .map(s => `${s.name || 'Unnamed'} (${s._id || s.id})`);
-      
-      console.log('Selected suppliers:', selectedSupplierNames);
     }
-    
-    // Log before setting state for debugging
-    console.log(`Setting ${validKeys.length} valid supplier keys in state`);
-    
-    setSelectedSuppliers(validKeys);
-    
+  }, [prId, selectedPRId, form]);
+
+  const fetchSuppliers = useCallback(async () => {
+    try {
+      // Direct API call to get active suppliers from Suppliers table
+      const response = await fetch('http://localhost:8888/api/supplier/list?status=active', {
+        method: 'GET',
+        headers: createHeaders()
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Suppliers fetched:', data);
+        setSuppliers(data.result || data.data || []);
+      } else {
+        console.error('Failed to fetch suppliers:', response.status);
+        setError('Failed to load suppliers from database');
+      }
+    } catch (err) {
+      console.error('Error fetching suppliers:', err);
+      setError(err.message || 'An error occurred while fetching suppliers');
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchApprovedPRs();
+    fetchSuppliers();
+    if (prId) {
+      fetchPurchaseRequisition();
+    }
+  }, [fetchApprovedPRs, fetchSuppliers, fetchPurchaseRequisition]);
+
+  const handlePRSelection = (value) => {
+    setSelectedPRId(value);
+    // Clear previous PR data
+    setPurchaseRequisition(null);
+    setPrItems([]);
     form.setFieldsValue({
-      suppliers: validKeys
+      description: '',
+      prId: value,
     });
   };
-  
+
+  useEffect(() => {
+    if (selectedPRId) {
+      fetchPurchaseRequisition();
+    }
+  }, [selectedPRId, fetchPurchaseRequisition]);
+
+  const handleSupplierChange = (newTargetKeys) => {
+    setTargetKeys(newTargetKeys);
+  };
+
   const handleAddManualItem = () => {
     setManualItems([
       ...manualItems,
@@ -184,378 +190,411 @@ function RFQCreate() {
   };
 
   const handleManualItemChange = (key, field, value) => {
-    setManualItems(manualItems.map(item =>
-      item.key === key ? { ...item, [field]: value } : item
-    ));
+    setManualItems(
+      manualItems.map((item) =>
+        item.key === key ? { ...item, [field]: value } : item
+      )
+    );
   };
 
   const handleRemoveManualItem = (key) => {
-    setManualItems(manualItems.filter(item => item.key !== key));
+    setManualItems(manualItems.filter((item) => item.key !== key));
   };
 
-  const itemsToUse = prItems.length > 0 ? prItems : manualItems;
-
-  const  handleSubmit = (values) => {
-    // Validate suppliers exist and have valid IDs
-    if (!selectedSuppliers || selectedSuppliers.length === 0) {
-      message.error(translate('Please select at least one supplier'));
-      return;
-    }
-    
-    // Additional validation to ensure all supplier IDs are valid
-    const validSupplierIds = selectedSuppliers.filter(key => key && typeof key === 'string' && key.trim() !== '');
-    if (validSupplierIds.length !== selectedSuppliers.length) {
-      console.error('Found invalid supplier IDs in selection:', 
-        selectedSuppliers.filter(id => !validSupplierIds.includes(id)));
-      message.error(translate('Some selected suppliers have invalid IDs. Please try selecting them again.'));
-      return;
-    }
-    
-    // Validate items exist
-    const itemsSource = prItems.length > 0 ? selectedItems : manualItems.map(i => i.key);
-    if (!itemsSource || itemsSource.length === 0) {
-      message.error(translate('Please add at least one item'));
-      return;
-    }
-    
+  const handleSubmit = async (values) => {
     setLoading(true);
     setError(null);
-      // Format dates and ensure all required fields are present
-    const formData = {
-      ...values,
-      dueDate: values.dueDate ? values.dueDate.format('YYYY-MM-DD') : moment().add(7, 'days').format('YYYY-MM-DD'),
-      description: values.description || `RFQ-${moment().format('YYYY-MM-DD')}`,
-      // Process suppliers
-      suppliers: selectedSuppliers,
-      // Process items
-      items: itemsSource === 'pr' 
-        ? selectedItems.map(itemId => {
-            const item = prItems.find(i => (i._id === itemId) || (i.id === itemId));
-            if (!item) return null;
-            return {
-              prItemId: item._id || item.id,
-              itemName: item.itemName || item.name || 'Unnamed Item',
-              description: item.description || '',
-              quantity: parseFloat(item.quantity) || 1,
-              uom: item.uom || 'each',
-              requestedDeliveryDate: item.requestedDeliveryDate || values.dueDate?.format('YYYY-MM-DD')
-            };
-          }).filter(Boolean)
-        : manualItems.map(item => ({
-            itemName: item.itemName,
-            description: item.description || '',
-            quantity: parseFloat(item.quantity) || 1,
-            uom: item.uom || 'each',
-            requestedDeliveryDate: item.requestedDeliveryDate || values.dueDate?.format('YYYY-MM-DD')
-          }))
-    };
 
-    // Validate the form data
-    const { isValid, normalizedFormData, errors } = validateRfqFormData(formData);
-    
-    if (!isValid) {
-      setError(errors.join(', '));
+    // Validate required fields before submission
+    console.log('Form values:', values);
+    console.log('Target keys (suppliers):', targetKeys);
+    console.log('PR Items:', prItems);
+    console.log('Manual Items:', manualItems);
+
+    // Check if suppliers are selected
+    if (!targetKeys || targetKeys.length === 0) {
+      setError('Please select at least one supplier');
       setLoading(false);
       return;
     }
 
-    // Submit the form
-    request.create({ entity: 'rfq', jsonData: normalizedFormData })
-      .then(response => {
-        if (response.success) {
-          message.success(translate('RFQ created successfully'));
-          navigate('/rfq/list');
-        } else {
-          throw new Error(response.message || 'Error creating RFQ');
-        }
-      })
-      .catch(err => {
-        console.error('Error creating RFQ:', err);
-        setError(err.message || 'Error creating RFQ');
-        message.error(translate('Failed to create RFQ'));
-      })
-      .finally(() => {
+    // Check if items exist (either from PR or manual)
+    const hasItems = (prItems && prItems.length > 0) || (manualItems && manualItems.length > 0);
+    if (!hasItems) {
+      setError('Please add at least one item or select a Purchase Requisition with items');
+      setLoading(false);
+      return;
+    }
+
+    // Validate manual items if they are being used
+    if (manualItems.length > 0 && prItems.length === 0) {
+      const invalidItems = manualItems.filter(item => 
+        !item.itemName || !item.quantity || !item.uom
+      );
+      if (invalidItems.length > 0) {
+        setError('All manual items must have Item Name, Quantity, and UOM filled');
         setLoading(false);
+        return;
+      }
+    }
+
+    // Prepare items data - database expects 'description' as main field
+    const itemsToSubmit = prItems.length > 0 ? prItems.map(item => ({
+      purchaseRequisitionItemId: item._id || item.id,
+      itemNumber: item.itemNumber || null,
+      description: item.itemName || item.name || item.description || '',
+      quantity: parseFloat(item.quantity) || 0,
+      uom: item.uom || item.unit || 'each',
+    })) : manualItems.map(item => ({
+      itemNumber: null,
+      description: item.itemName || item.description || '',
+      quantity: parseFloat(item.quantity) || 0,
+      uom: item.uom || 'each',
+    }));
+
+    const rfqData = {
+      description: values.description,
+      submissionDeadline: values.dueDate ? values.dueDate.format('YYYY-MM-DD') : null,
+      supplierIds: targetKeys,
+      purchaseRequisitionId: selectedPRId || prId,
+      lineItems: itemsToSubmit,
+    };
+
+    // Additional validation
+    if (!rfqData.description || rfqData.description.trim() === '') {
+      setError('RFQ Description is required');
+      setLoading(false);
+      return;
+    }
+
+    if (!rfqData.purchaseRequisitionId) {
+      setError('Purchase Requisition is required for creating RFQ');
+      setLoading(false);
+      return;
+    }
+
+    if (!rfqData.submissionDeadline) {
+      setError('Due Date is required');
+      setLoading(false);
+      return;
+    }
+
+    if (!rfqData.supplierIds || rfqData.supplierIds.length === 0) {
+      setError('At least one supplier must be selected');
+      setLoading(false);
+      return;
+    }
+
+    if (!rfqData.lineItems || rfqData.lineItems.length === 0) {
+      setError('At least one item must be included');
+      setLoading(false);
+      return;
+    }
+
+    console.log('Submitting RFQ data:', JSON.stringify(rfqData, null, 2));
+
+    try {
+      // Use direct API call to create RFQ (POST to /api/rfq)
+      const auth = storePersist.get('auth');
+      console.log('Auth from Redux store:', auth);
+      console.log('Token exists:', !!auth?.current?.token);
+      
+      const headers = createHeaders();
+      console.log('Headers being sent:', JSON.stringify(headers, null, 2));
+      
+      const response = await fetch('http://localhost:8888/api/rfq', {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(rfqData)
       });
+
+      const data = await response.json();
+      
+      console.log('Full API Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        data: data
+      });
+      console.log('Response data details:', JSON.stringify(data, null, 2));
+      
+      if (response.ok && data.success) {
+        message.success(translate('RFQ created successfully'));
+        navigate('/rfq');
+        return;
+      } else {
+        console.error('RFQ creation failed - Full response:', response);
+        console.error('RFQ creation failed - Response data:', data);
+        console.error('RFQ creation failed - Submitted data:', rfqData);
+        
+        const errorMessage = data.message || data.error || 'Failed to create RFQ';
+        const validationErrors = data.errors || data.validationErrors || [];
+        
+        if (validationErrors.length > 0) {
+          const fieldErrors = validationErrors.map(err => `${err.field}: ${err.message}`).join(', ');
+          setError(`Validation errors: ${fieldErrors}`);
+        } else {
+          setError(`${errorMessage} (Status: ${response.status})`);
+        }
+        return;
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred while creating the RFQ');
+    } finally {
+      setLoading(false);
+    }
   };
-  
+
+  // Helper to truncate text with ellipsis and tooltip
+  const renderEllipsis = (text, maxLength = 30) => {
+    if (!text) return '';
+    const display = text.length > maxLength ? text.slice(0, maxLength) + '…' : text;
+    return (
+      <Tooltip title={text}>
+        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'inline-block', maxWidth: 200 }}>{display}</span>
+      </Tooltip>
+    );
+  };
+
   const itemColumns = [
+    { 
+      title: translate('Item Name'), 
+      dataIndex: 'itemName', 
+      key: 'itemName',
+      render: (text) => renderEllipsis(text, 30),
+    },
+    { 
+      title: translate('Description'), 
+      dataIndex: 'description', 
+      key: 'description',
+      render: (text) => renderEllipsis(text, 50),
+    },
+    { title: translate('Quantity'), dataIndex: 'quantity', key: 'quantity' },
+    { title: translate('UOM'), dataIndex: 'uom', key: 'uom' },
+  ];
+
+  const manualItemColumns = [
     {
       title: translate('Item Name'),
       dataIndex: 'itemName',
-      key: 'itemName',
+      render: (text, record) => (
+        <Input
+          value={text}
+          onChange={(e) => handleManualItemChange(record.key, 'itemName', e.target.value)}
+        />
+      ),
     },
     {
       title: translate('Description'),
       dataIndex: 'description',
-      key: 'description',
-      render: text => text || '-',
+      render: (text, record) => (
+        <Input
+          value={text}
+          onChange={(e) => handleManualItemChange(record.key, 'description', e.target.value)}
+        />
+      ),
     },
     {
       title: translate('Quantity'),
       dataIndex: 'quantity',
-      key: 'quantity',
+      render: (text, record) => (
+        <Input
+          type="number"
+          value={text}
+          onChange={(e) => handleManualItemChange(record.key, 'quantity', e.target.value)}
+        />
+      ),
     },
     {
       title: translate('UOM'),
       dataIndex: 'uom',
-      key: 'uom',
+      render: (text, record) => (
+        <Input
+          value={text}
+          onChange={(e) => handleManualItemChange(record.key, 'uom', e.target.value)}
+        />
+      ),
+    },
+    {
+      title: translate('Actions'),
+      key: 'actions',
+      render: (_, record) => (
+        <Button danger onClick={() => handleRemoveManualItem(record.key)}>
+          {translate('Remove')}
+        </Button>
+      ),
     },
   ];
-  
+
   if (prLoading) {
-    return <div style={{ display: 'flex', justifyContent: 'center', padding: '50px' }}><Spin size="large" /></div>;
+    return <Spin />;
   }
-  
+
   return (
     <div className="container">
-      <div className="page-header">
-        <Title level={2}>{translate('Create Request for Quotation')}</Title>
-      </div>
-        {error && (
-        <Alert 
-          message={translate('Error Creating RFQ')} 
-          description={
-            <div>
-              <p>{error}</p>
-              <p>{translate('Please check the form and try again. If the problem persists, contact support.')}</p>
-            </div>
-          }
-          type="error" 
-          showIcon 
-          style={{ marginBottom: 16 }} 
-        />
-      )}
+      <Title level={2}>{translate('Create Request for Quotation')}</Title>
+      {error && <Alert message={error} type="error" showIcon closable />}
       
-      <Form 
-        form={form} 
-        layout="vertical"        onFinish={handleSubmit}
-        initialValues={{
-          dueDate: moment().add(7, 'days')
-        }}
-      >
+      <Form form={form} layout="vertical" onFinish={handleSubmit}>
         <Card title={translate('RFQ Details')} style={{ marginBottom: 16 }}>
+          {!prId && (
+            <Form.Item
+              name="selectedPR"
+              label={translate('Select Approved Purchase Requisition')}
+              rules={[{ required: !prId, message: translate('Please select a Purchase Requisition') }]}
+            >
+              <Select
+                placeholder={translate('Select an approved PR')}
+                onChange={handlePRSelection}
+                showSearch
+                filterOption={(input, option) =>
+                  option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                }
+              >
+                {approvedPRs.map(pr => (
+                  <Option key={pr.id} value={pr.id}>
+                    {pr.prNumber} - {pr.description} ({pr.totalAmount} {pr.currency})
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
+          )}
+          
           <Form.Item
             name="description"
             label={translate('RFQ Description')}
-            rules={[{ required: true, message: translate('Please enter a description for this RFQ') }]}
+            rules={[{ required: true, message: 'Please enter RFQ description' }]}
           >
-            <TextArea rows={3} placeholder={translate('Enter a descriptive title and details about this RFQ')} />
+            <TextArea rows={3} />
           </Form.Item>
           
-          <Form.Item
-            name="prId"
-            label={translate('Purchase Requisition')}
-            hidden={!prId}
-          >
+          <Form.Item name="prId" label={translate('Purchase Requisition')} hidden>
             <Input disabled />
-          </Form.Item>          <Form.Item
-            name="dueDate"
-            label={translate('Due Date')}
-            rules={[{ required: true, message: translate('Please select a due date') }]}
-          >
+          </Form.Item>
+          
+          <Form.Item name="dueDate" label={translate('Due Date')} rules={[{ required: true, message: 'Please select due date' }]}>
             <DatePicker style={{ width: '100%' }} />
           </Form.Item>
         </Card>
-          <Card title={translate('Suppliers')} style={{ marginBottom: 16 }}>
-          <Alert 
-            message={translate('Select at least one supplier to send this RFQ to')} 
-            type="info" 
-            showIcon 
-            style={{ marginBottom: 16 }} 
-          />
-          
-          {supplierError && (
-            <Alert
-              message={translate("Error Loading Suppliers")}
-              description={supplierError}
-              type="error"
-              showIcon
-              style={{ marginBottom: 16 }}
-            />
-          )}
-          
-          {supplierWarnings.length > 0 && (
-            <Alert
-              message={translate("Supplier Data Issues Detected")}
-              description={
-                <ul>
-                  {supplierWarnings.map((warning, index) => (
-                    <li key={index}>{translate(warning)}</li>
-                  ))}
-                </ul>
-              }
-              type="warning"
-              showIcon
-              style={{ marginBottom: 16 }}
-            />
-          )}
-          
-          <Transfer
-            dataSource={prepareTransferDataSource(suppliers)}
-            titles={[translate('Available Suppliers'), translate('Selected Suppliers')]}
-            targetKeys={selectedSuppliers}
-            onChange={handleSupplierChange}
-            render={item => (
+
+        {(selectedPRId || prId) && (
+          <Card title={translate('Selected PR Information')} style={{ marginBottom: 16 }}>
+            {purchaseRequisition && (
               <div>
-                <strong>{item.title}</strong> {item.description ? `(${item.description})` : ''}
+                <p><strong>PR Number:</strong> {purchaseRequisition.prNumber || purchaseRequisition.number}</p>
+                <p><strong>Description:</strong> {purchaseRequisition.description}</p>
+                <p><strong>Total Amount:</strong> {purchaseRequisition.totalAmount} {purchaseRequisition.currency}</p>
+                <p><strong>Cost Center:</strong> {purchaseRequisition.costCenter}</p>
+                <p><strong>Status:</strong> {purchaseRequisition.status}</p>
+                <p><strong>Items:</strong> {prItems.length} items found</p>
               </div>
             )}
-            listStyle={{
-              width: '45%',
-              height: 300,
-            }}
-            style={{ marginBottom: 16 }}
-            filterOption={(inputValue, item) => {
-              const searchValue = inputValue.toLowerCase();
-              return (
-                (item.title && item.title.toLowerCase().includes(searchValue)) ||
-                (item.description && item.description.toLowerCase().includes(searchValue))
-              );
-            }}
+          </Card>
+        )}
+
+        <Card 
+          title={
+            <span>
+              {translate('Suppliers')} 
+              <span style={{ color: 'red' }}>*</span>
+              {targetKeys.length > 0 && (
+                <span style={{ color: 'green', marginLeft: 8 }}>
+                  ({targetKeys.length} selected)
+                </span>
+              )}
+            </span>
+          } 
+          style={{ marginBottom: 16 }}
+        >
+          {targetKeys.length === 0 && (
+            <Alert 
+              message="Please select at least one supplier" 
+              type="warning" 
+              style={{ marginBottom: 16 }}
+              showIcon 
+            />
+          )}
+          <div style={{ marginBottom: 16 }}>
+            <p>Found {suppliers.length} suppliers</p>
+            {suppliers.length > 0 && (
+              <ul>
+                {suppliers.slice(0, 3).map(s => (
+                  <li key={s._id || s.id}>
+                    {renderEllipsis(s.name || s.legalName, 30)} - {renderEllipsis(s.email, 30)} - Status: {s.status}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <Transfer
+            dataSource={suppliers.map(s => ({ 
+              key: s._id || s.id, 
+              title: s.name || s.legalName || 'Unnamed Supplier', 
+              description: s.email || 'No email' 
+            }))}
+            targetKeys={targetKeys}
+            onChange={handleSupplierChange}
+            render={(item) => (
+              <span>
+                {renderEllipsis(item.title, 30)} - {renderEllipsis(item.description, 30)}
+              </span>
+            )}
+            listStyle={{ width: '45%', height: 300 }}
             showSearch
           />
-          
-          <Form.Item name="suppliers" hidden>
-            <Input />
-          </Form.Item>
         </Card>
-        
-        <Card title={translate('Items')}>
+
+        <Card 
+          title={
+            <span>
+              {translate('Items')} 
+              <span style={{ color: 'red' }}>*</span>
+              {(prItems.length > 0 || manualItems.length > 0) && (
+                <span style={{ color: 'green', marginLeft: 8 }}>
+                  ({prItems.length > 0 ? `${prItems.length} from PR` : `${manualItems.length} manual`})
+                </span>
+              )}
+            </span>
+          }
+        >
+          {prItems.length === 0 && manualItems.length === 0 && (
+            <Alert 
+              message="Please add at least one item or select a Purchase Requisition with items" 
+              type="warning" 
+              style={{ marginBottom: 16 }}
+              showIcon 
+            />
+          )}
           {prItems.length > 0 ? (
-            <>
-              <Alert 
-                message={translate('These items will be included in the RFQ')} 
-                type="info" 
-                showIcon 
-                style={{ marginBottom: 16 }} 
-              />
-              
-              {/* Debug information to show what items we have */}
-              <div style={{ marginBottom: 16, padding: 10, background: '#f0f2f5', border: '1px dashed #d9d9d9' }}>
-                <h4>Debug: Available Items ({prItems.length})</h4>
-                <ul>
-                  {prItems.map((item, index) => (
-                    <li key={item._id || item.id || index}>
-                      {item.itemName} ({item.quantity} {item.uom}) - 
-                      ID: {item._id || item.id || 'unknown'} - 
-                      PR ID: {item.prId}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              
-              <Table
-                rowSelection={{
-                  selectedRowKeys: selectedItems,
-                  onChange: selectedRowKeys => setSelectedItems(selectedRowKeys),
-                }}                
-                columns={itemColumns}
-                dataSource={prItems}
-                rowKey={record => record._id || record.id || `item-${Math.random().toString(36).substring(2, 10)}`}
-                pagination={false}
-                locale={{
-                  emptyText: translate('No items available')
-                }}
-                rowClassName={(record) => {
-                  // Apply a class for easier debugging if needed
-                  return record._id ? '' : 'item-missing-id';
-                }}
-              />
-            </>
+            <Table
+              columns={itemColumns}
+              dataSource={prItems}
+              rowKey="_id"
+              pagination={false}
+            />
           ) : (
             <>
-              <Alert
-                message={translate('No PR selected or PR has no items. Please add items manually below.')}
-                type="info"
-                showIcon
+              <Button
+                type="dashed"
+                onClick={handleAddManualItem}
+                icon={<PlusOutlined />}
                 style={{ marginBottom: 16 }}
-              />
-              <Button type="dashed" onClick={handleAddManualItem} icon={<PlusOutlined />} style={{ marginBottom: 16 }}>
+              >
                 {translate('Add Item')}
               </Button>
               <Table
+                columns={manualItemColumns}
                 dataSource={manualItems}
-                columns={[
-                  {
-                    title: translate('Item Name'),
-                    dataIndex: 'itemName',
-                    key: 'itemName',
-                    render: (text, record) => (
-                      <Input
-                        value={text}
-                        onChange={e => handleManualItemChange(record.key, 'itemName', e.target.value)}
-                        placeholder={translate('Enter item name')}
-                      />
-                    ),
-                  },
-                  {
-                    title: translate('Description'),
-                    dataIndex: 'description',
-                    key: 'description',
-                    render: (text, record) => (
-                      <Input
-                        value={text}
-                        onChange={e => handleManualItemChange(record.key, 'description', e.target.value)}
-                        placeholder={translate('Enter description')}
-                      />
-                    ),
-                  },
-                  {
-                    title: translate('Quantity'),
-                    dataIndex: 'quantity',
-                    key: 'quantity',
-                    render: (text, record) => (
-                      <Input
-                        type="number"
-                        min={1}
-                        value={text}
-                        onChange={e => handleManualItemChange(record.key, 'quantity', e.target.value)}
-                        placeholder={translate('Quantity')}
-                      />
-                    ),
-                  },
-                  {
-                    title: translate('UOM'),
-                    dataIndex: 'uom',
-                    key: 'uom',
-                    render: (text, record) => (
-                      <Input
-                        value={text}
-                        onChange={e => handleManualItemChange(record.key, 'uom', e.target.value)}
-                        placeholder={translate('Unit of Measure')}
-                      />
-                    ),
-                  },
-                  {
-                    title: '',
-                    key: 'action',
-                    render: (_, record) => (
-                      <Button danger onClick={() => handleRemoveManualItem(record.key)}>
-                        {translate('Remove')}
-                      </Button>
-                    ),
-                  },
-                ]}
-                rowKey={record => record.key}
+                rowKey="key"
                 pagination={false}
-                locale={{ emptyText: translate('No items. Click "Add Item" to add.') }}
               />
             </>
           )}
         </Card>
-        
+
         <div style={{ marginTop: 16, textAlign: 'right' }}>
           <Space>
-            <Button onClick={() => navigate('/rfq')}>
-              {translate('Cancel')}
-            </Button>
-            <Button 
-              type="primary" 
-              htmlType="submit" 
-              loading={loading}
-              disabled={prItems.length === 0 && manualItems.length === 0}
-            >
+            <Button onClick={() => navigate('/rfq')}>{translate('Cancel')}</Button>
+            <Button type="primary" htmlType="submit" loading={loading}>
               {translate('Create RFQ')}
             </Button>
           </Space>
@@ -563,6 +602,6 @@ function RFQCreate() {
       </Form>
     </div>
   );
-}
+};
 
 export default RFQCreate;

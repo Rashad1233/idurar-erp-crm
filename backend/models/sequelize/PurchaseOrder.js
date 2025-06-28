@@ -16,7 +16,8 @@ module.exports = (sequelize) => {
     description: {
       type: DataTypes.TEXT,
       allowNull: false,
-    },    requestForQuotationId: {
+    },
+    requestForQuotationId: {
       type: DataTypes.UUID,
       allowNull: true, // Optional RFQ reference
     },
@@ -51,7 +52,8 @@ module.exports = (sequelize) => {
     deliveryAddress: {
       type: DataTypes.TEXT,
       allowNull: true,
-    },    requestorId: {
+    },
+    requestorId: {
       type: DataTypes.UUID,
       allowNull: false,
     },
@@ -87,7 +89,8 @@ module.exports = (sequelize) => {
     },
     cancelledAt: {
       type: DataTypes.DATE,
-    },    createdById: {
+    },
+    createdById: {
       type: DataTypes.UUID,
       allowNull: false,
     },
@@ -98,6 +101,35 @@ module.exports = (sequelize) => {
     costCenter: {
       type: DataTypes.STRING,
       allowNull: false,
+    },
+    approvalToken: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      unique: true,
+    },
+    approvalStatus: {
+      type: DataTypes.ENUM('pending', 'approved', 'rejected'),
+      defaultValue: 'pending',
+    },
+    approverName: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    approverTitle: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    approverComments: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    tokenExpiry: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    urgency: {
+      type: DataTypes.ENUM('low', 'medium', 'high'),
+      defaultValue: 'medium',
     },
   });
 

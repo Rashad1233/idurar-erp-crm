@@ -23,8 +23,12 @@ import useResponsive from '@/hooks/useResponsive';
 
 import storePersist from '@/redux/storePersist';
 
+import { useLocation } from 'react-router-dom';
+
 export default function ErpCrmApp() {
   const { Content } = Layout;
+
+  const location = useLocation();
 
   // const { state: stateApp, appContextAction } = useAppContext();
   // // const { app } = appContextAction;
@@ -48,42 +52,61 @@ export default function ErpCrmApp() {
   //   }
   // }, [appSettings]);
 
-  if (settingIsloaded || !settingsLoading)
-    return (
-      <Layout hasSider>
-        <Navigation />
-
-        {isMobile ? (
-          <Layout style={{ marginLeft: 0 }}>
-            <HeaderContent />
-            <Content
-              style={{
-                margin: '40px auto 30px',              overflow: 'initial',
+  if (settingIsloaded || !settingsLoading) {
+    if (location.pathname.startsWith('/supplier-acceptance')) {
+      return (
+        <Layout>
+          <Content
+            style={{
+              margin: '40px auto 30px',
+              overflow: 'initial',
               width: '100%',
-              padding: '0 25px',
-              maxWidth: 'none',
+              padding: '0 50px',
+              maxWidth: 1400,
             }}
-            >
-              <AppRouter />
-            </Content>
-          </Layout>
-        ) : (
-          <Layout>
-            <HeaderContent />
-            <Content
-              style={{
-                margin: '40px auto 30px',
-                overflow: 'initial',
-                width: '100%',
-                padding: '0 50px',
-                maxWidth: 1400,
-              }}
-            >
-              <AppRouter />
-            </Content>
-          </Layout>
-        )}
-      </Layout>
-    );
-  else return <PageLoader />;
+          >
+            <AppRouter />
+          </Content>
+        </Layout>
+      );
+    } else {
+      return (
+        <Layout hasSider>
+          <Navigation />
+
+          {isMobile ? (
+            <Layout style={{ marginLeft: 0 }}>
+              <HeaderContent />
+              <Content
+                style={{
+                  margin: '40px auto 30px',
+                  overflow: 'initial',
+                  width: '100%',
+                  padding: '0 25px',
+                  maxWidth: 'none',
+                }}
+              >
+                <AppRouter />
+              </Content>
+            </Layout>
+          ) : (
+            <Layout>
+              <HeaderContent />
+              <Content
+                style={{
+                  margin: '40px auto 30px',
+                  overflow: 'initial',
+                  width: '100%',
+                  padding: '0 50px',
+                  maxWidth: 1400,
+                }}
+              >
+                <AppRouter />
+              </Content>
+            </Layout>
+          )}
+        </Layout>
+      );
+    }
+  } else return <PageLoader />;
 }

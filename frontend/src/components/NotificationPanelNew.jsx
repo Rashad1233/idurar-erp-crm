@@ -200,13 +200,12 @@ const NotificationPanel = () => {
   );
 
   return (
-    <>
-      <Dropdown 
-        overlay={notificationMenu} 
+    <>      <Dropdown 
+        dropdownRender={() => notificationMenu}
         trigger={['click']} 
         placement="bottomRight"
-        onVisibleChange={(visible) => {
-          if (visible) {
+        onOpenChange={(open) => {
+          if (open) {
             loadNotifications();
           }
         }}
@@ -224,10 +223,9 @@ const NotificationPanel = () => {
         </Badge>
       </Dropdown>
 
-      {/* Notification Details Modal */}
-      <Modal
+      {/* Notification Details Modal */}      <Modal
         title="Rejection Details"
-        visible={modalVisible}
+        open={modalVisible}
         onCancel={() => {
           setModalVisible(false);
           setSelectedNotification(null);
@@ -300,9 +298,8 @@ const NotificationPanel = () => {
         )}
       </Modal>
 
-      {/* Edit Item Modal */}
-      <ItemEditFromNotificationModal
-        visible={editModalVisible}
+      {/* Edit Item Modal */}      <ItemEditFromNotificationModal
+        open={editModalVisible}
         onCancel={() => {
           setEditModalVisible(false);
           setSelectedNotification(null);

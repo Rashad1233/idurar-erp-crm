@@ -62,7 +62,49 @@ function Sidebar({ collapsible, isMobile = false }) {
       key: 'dashboard',
       icon: <DashboardOutlined />,
       label: <Link to={'/'}>{translate('dashboard')}</Link>,
-    },    
+    },
+    // DoFA Module (Separate section for Delegation of Financial Authority)
+    {
+      key: 'dofa-module',
+      icon: <TagsOutlined />,
+      label: translate('Approval Authority'),
+      children: [
+        {
+          key: 'dofa',
+          label: <Link to={'/dofa'}>{translate('Delegation of Authority (DoFA)')}</Link>,
+        },
+        {
+          key: 'procurement-review',
+          label: translate('Procurement'),
+          children: [
+            {
+              key: 'item-review',
+              label: <Link to={'/item-master/review'}>{translate('Item Review')}</Link>,
+            },
+            {
+              key: 'purchase-requisition-review',
+              label: <Link to={'/purchase-requisition/approval'}>{translate('Purchase Requisition Review')}</Link>,
+            },
+            {
+              key: 'rfq-review',
+              label: <Link to={'/rfq'}>{translate('RFQ Review')}</Link>,
+            },
+            {
+              key: 'purchase-order-review',
+              label: <Link to={'/purchase-order'}>{translate('PO Review')}</Link>,
+            },
+            {
+              key: 'contracts-review',
+              label: <Link to={'/dofa/contracts/review'}>{translate('Contracts Review')}</Link>,
+            },
+            {
+              key: 'suppliers-review',
+              label: <Link to={'/dofa/suppliers/review'}>{translate('Suppliers Review')}</Link>,
+            },
+          ],
+        },
+      ],
+    },
     // Procurement Module
     {
       key: 'procurement-module',
@@ -111,6 +153,26 @@ function Sidebar({ collapsible, isMobile = false }) {
         {
           key: 'inventory-reporting',
           label: <Link to={'/inventory/reporting'}>{translate('Reporting')}</Link>,
+        },
+      ],
+    },
+    // Sales Module
+    {
+      key: 'sales-module',
+      icon: <ShopOutlined />,
+      label: translate('sales'),
+      children: [
+        {
+          key: 'pos',
+          label: <Link to={'/sales/pos'}>{translate('Point of Sale (POS)')}</Link>,
+        },
+        {
+          key: 'sales-orders',
+          label: <Link to={'/sales/orders'}>{translate('Sales Orders')}</Link>,
+        },
+        {
+          key: 'sales-customers',
+          label: <Link to={'/sales/customers'}>{translate('Customers')}</Link>,
         },
       ],
     },

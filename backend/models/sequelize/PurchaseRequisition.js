@@ -28,11 +28,14 @@ module.exports = (sequelize) => {
     currency: {
       type: DataTypes.STRING,
       defaultValue: 'USD',
-    },
-    costCenter: {
+    },    costCenter: {
       type: DataTypes.STRING,
       allowNull: false,
-    },    requestorId: {
+    },
+    contractId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+    },requestorId: {
       type: DataTypes.UUID,
       allowNull: false,
     },
@@ -74,12 +77,12 @@ module.exports = (sequelize) => {
     timestamps: true,
     underscored: false
   });
-
   PurchaseRequisition.associate = function(models) {
     PurchaseRequisition.belongsTo(models.User, { as: 'requestor', foreignKey: 'requestorId' });    PurchaseRequisition.belongsTo(models.User, { as: 'approver', foreignKey: 'approverId' });
     PurchaseRequisition.belongsTo(models.User, { as: 'currentApprover', foreignKey: 'currentApproverId' });
     PurchaseRequisition.belongsTo(models.User, { as: 'createdBy', foreignKey: 'createdById' });
     PurchaseRequisition.belongsTo(models.User, { as: 'updatedBy', foreignKey: 'updatedById' });
+    PurchaseRequisition.belongsTo(models.Contract, { as: 'contract', foreignKey: 'contractId' });
     PurchaseRequisition.hasMany(models.PurchaseRequisitionItem, { as: 'items', foreignKey: 'purchaseRequisitionId' });
     // TODO: Add this association when ApprovalHistory model is available
     // PurchaseRequisition.hasMany(models.ApprovalHistory, { as: 'approvalHistory', foreignKey: 'referenceId', constraints: false, scope: { referenceType: 'PurchaseRequisition' } });

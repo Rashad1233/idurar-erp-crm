@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple API Test</title>
+</head>
+<body>
+    <h1>Simple API Test</h1>
+    <button onclick="testAPI()">Test API</button>
+    <div id="result"></div>
+    
+    <script>
+        function testAPI() {
+            console.log('Testing API...');
+            
+            fetch('http://localhost:8888/api/item?filter=approved', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            })
+            .then(response => {
+                console.log('Response status:', response.status);
+                console.log('Response ok:', response.ok);
+                return response.json();
+            })
+            .then(data => {
+                console.log('Response data:', data);
+                document.getElementById('result').innerHTML = 
+                    `<p>Success: ${data.success}</p>
+                     <p>Items: ${data.data ? data.data.length : 0}</p>
+                     <pre>${JSON.stringify(data, null, 2)}</pre>`;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('result').innerHTML = `<p>Error: ${error.message}</p>`;
+            });
+        }
+        
+        // Auto test on load
+        window.onload = testAPI;
+    </script>
+</body>
+</html>

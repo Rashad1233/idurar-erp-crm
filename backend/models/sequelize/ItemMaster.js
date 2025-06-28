@@ -48,10 +48,19 @@ module.exports = (sequelize, DataTypes) => {
         model: 'UnspscCodes',
         key: 'id'
       },
-    },
-    uom: {
+    },    uom: {
       type: DataTypes.STRING,
       allowNull: false,
+    },
+    quantityPerKg: {
+      type: DataTypes.DECIMAL(10, 4),
+      allowNull: true,
+      comment: 'Quantity per kilogram (for weight-based calculations)',
+    },
+    quantityPerCubicMeter: {
+      type: DataTypes.DECIMAL(10, 4),
+      allowNull: true,
+      comment: 'Quantity per cubic meter (for volume-based calculations)',
     },
     equipmentTag: {
       type: DataTypes.STRING,

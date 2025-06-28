@@ -21,6 +21,9 @@ router.get('/usage-stats', aiUsageController.getUsageStats);
 // Route to generate PR comments/purpose
 router.post('/generate-pr-comments', aiController.generatePRComments);
 
+// Route to generate PR justification
+router.post('/generate-pr-justification', aiController.generatePRJustification);
+
 // Route to generate supplier recommendations
 router.post('/generate-supplier-recommendations', aiController.generateSupplierRecommendations);
 

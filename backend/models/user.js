@@ -18,6 +18,13 @@ module.exports = (sequelize) => {
           as: 'approvals'
         });
       }
+
+      // SalesOrder associations
+      if (models.SalesOrder) {
+        this.hasMany(models.SalesOrder, { foreignKey: 'salesPersonId', as: 'salesPersonOrders' });
+        this.hasMany(models.SalesOrder, { foreignKey: 'createdById', as: 'createdOrders' });
+        this.hasMany(models.SalesOrder, { foreignKey: 'updatedById', as: 'updatedOrders' });
+      }
     }    async validPassword(password) {
       try {
         if (!this.password) {

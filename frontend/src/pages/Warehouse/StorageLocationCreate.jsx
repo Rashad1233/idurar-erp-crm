@@ -76,8 +76,7 @@ export default function StorageLocationCreate() {
                 autoComplete="off"
               >
                 <Row gutter={[16, 16]}>
-                  <Col span={12}>
-                    <Form.Item
+                  <Col span={12}>                    <Form.Item
                       name="code"
                       label="Storage Location Code"
                       rules={[
@@ -86,12 +85,21 @@ export default function StorageLocationCreate() {
                           message: 'Please enter a storage location code',
                         },
                         {
-                          max: 10,
-                          message: 'Code cannot be longer than 10 characters',
+                          pattern: /^[A-Z]{3}\d{2}$/,
+                          message: 'Code must follow format: 3 letters + 2 numbers (e.g., BRG01)',
                         },
                       ]}
                     >
-                      <Input placeholder="e.g., WH01, NY01" />
+                      <Input 
+                        placeholder="e.g., BRG01, NYC01, LON01" 
+                        maxLength={5}
+                        style={{ textTransform: 'uppercase' }}
+                        onChange={(e) => {
+                          // Auto-uppercase input
+                          const value = e.target.value.toUpperCase();
+                          form.setFieldValue('code', value);
+                        }}
+                      />
                     </Form.Item>
                   </Col>
                   <Col span={12}>
@@ -105,7 +113,7 @@ export default function StorageLocationCreate() {
                         },
                       ]}
                     >
-                      <Input placeholder="e.g., Main Warehouse, New York Storage" />
+                      <Input placeholder="e.g., Brighton Warehouse 1, New York Central Storage" />
                     </Form.Item>
                   </Col>
                 </Row>
@@ -117,9 +125,8 @@ export default function StorageLocationCreate() {
                     <Form.Item
                       name="street"
                       label="Street Address"
-                    >
-                      <TextArea 
-                        placeholder="Enter street address" 
+                    >                      <TextArea 
+                        placeholder="e.g., Falmer village street 3, 123 Main Street" 
                         autoSize={{ minRows: 2, maxRows: 4 }}
                       />
                     </Form.Item>
@@ -132,7 +139,7 @@ export default function StorageLocationCreate() {
                       name="city"
                       label="City"
                     >
-                      <Input placeholder="Enter city" />
+                      <Input placeholder="e.g., Brighton, New York, London" />
                     </Form.Item>
                   </Col>
                   <Col span={8}>
@@ -140,7 +147,7 @@ export default function StorageLocationCreate() {
                       name="postalCode"
                       label="Postal Code"
                     >
-                      <Input placeholder="Enter postal code" />
+                      <Input placeholder="e.g., NS0R51, 10001, SW1A 1AA" />
                     </Form.Item>
                   </Col>
                   <Col span={8}>

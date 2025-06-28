@@ -591,12 +591,106 @@ Generate only the comment text, no additional formatting or labels.`;    const r
         }
       }
     });
-
   } catch (error) {
     console.error('PR comments generation error:', error);
     res.status(500).json({
       success: false,
       message: 'Error generating PR comments: ' + error.message
+    });
+  }
+};
+
+// Generate AI justification for Purchase Requisition
+exports.generatePRJustification = async (req, res) => {
+  try {
+    const { items, department, priority, totalAmount, requiredDate, context } = req.body;
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Items array is required'
+      });
+    }
+
+    // Create detailed item analysis
+    const itemAnalysis = items.map(item => {
+      const price = item.price || 0;
+      const total = price * (item.quantity || 1);
+      return `${item.itemName || item.description || 'Item'} (Qty: ${item.quantity || 1}, Est: $${total.toFixed(2)})${item.criticality ? ` - ${item.criticality} criticality` : ''}${item.category ? ` - ${item.category}` : ''}`;
+    }).join('\n');
+
+    const highValueItems = items.filter(item => (item.price || 0) * (item.quantity || 1) > 500);
+    const criticalItems = items.filter(item => item.criticality === 'HIGH' || item.criticality === 'CRITICAL');    const prompt = `Generate a concise business justification for a Purchase Requisition:
+
+ITEMS: ${items.length} items, Total: $${totalAmount || 0}
+DEPARTMENT: ${department || 'General'}
+PRIORITY: ${priority || 'MEDIUM'}
+REQUIRED: ${requiredDate || 'ASAP'}
+
+KEY ITEMS:
+${itemAnalysis}
+
+Requirements:
+- Write 2-3 sentences maximum
+- Explain WHY these items are needed
+- Include business impact if not approved
+- Maximum 400 characters
+- Professional, concise tone
+- No additional formatting
+
+Generate only the justification text:`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4.1-nano-2025-04-14", // Same model as comments
+      messages: [
+        {
+          role: "system",
+          content: "You are a procurement manager writing ultra-concise business justifications. Keep responses under 400 characters. Be direct and impactful."
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      max_tokens: 120, // Reduced significantly for shorter output
+      temperature: 0.6    });
+
+    let justification = response.choices[0].message.content.trim();
+    
+    // Enforce 500 character limit (frontend constraint)
+    if (justification.length > 500) {
+      justification = justification.substring(0, 497) + '...';
+      console.log(`📝 Justification truncated from ${response.choices[0].message.content.length} to 500 characters`);
+    }
+
+    // Track usage for cost monitoring
+    const tokens = response.usage?.total_tokens || 300;
+    const cost = calculateCost('pr-justification-generation', tokens);
+    const userId = req.user?.id || req.body?.userId || 'anonymous';
+      trackUsage(userId, 'pr-justification-generation', tokens, cost);
+    console.log(`💰 PR Justification usage: ${tokens} tokens, $${cost.toFixed(6)} cost`);
+    console.log(`📝 Generated justification (${justification.length} chars): "${justification.substring(0, 100)}..."`);
+
+    res.json({
+      success: true,
+      data: {
+        justification,
+        itemCount: items.length,
+        totalAmount,
+        priority,
+        context: {
+          department,
+          criticalItems: criticalItems.length,
+          highValueItems: highValueItems.length
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('PR justification generation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error generating PR justification: ' + error.message
     });
   }
 };

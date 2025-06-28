@@ -19,12 +19,13 @@ const SimpleDataTable = ({
   
   // Process columns to ensure no tooltip behaviors
   const safeColumns = React.useMemo(() => {
-    return columns.map(col => ({
-      ...col,
-      ellipsis: false,
-      tooltip: undefined,
-      showSorterTooltip: false
-    }));
+    return columns.map(col => {
+      const { ellipsis, tooltip, ...restCol } = col;
+      return {
+        ...restCol,
+        showSorterTooltip: false
+      };
+    });
   }, [columns]);
   
   useEffect(() => {
@@ -53,20 +54,14 @@ const SimpleDataTable = ({
           header: {
             cell: ({ children, ...restProps }) => {
               // Remove any props that might trigger tooltips
-              const safeProps = { ...restProps };
-              delete safeProps.title;
-              delete safeProps.ellipsis;
-              delete safeProps.tooltip;
+              const { title, ellipsis, tooltip, ...safeProps } = restProps;
               return <th {...safeProps}>{children}</th>;
             }
           },
           body: {
             cell: ({ children, ...restProps }) => {
               // Remove any props that might trigger tooltips
-              const safeProps = { ...restProps };
-              delete safeProps.title;
-              delete safeProps.ellipsis;
-              delete safeProps.tooltip;
+              const { title, ellipsis, tooltip, ...safeProps } = restProps;
               return <td {...safeProps}>{children}</td>;
             }
           }

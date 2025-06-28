@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test PO PR Selection</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .log {
+            background: #f5f5f5;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 3px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        select {
+            padding: 5px;
+            margin: 5px;
+            width: 300px;
+        }
+        .error {
+            color: red;
+        }
+        .success {
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Purchase Order PR Selection</h1>
+    
+    <div class="section">
+        <h2>Configuration</h2>
+        <label>API URL: <input type="text" id="apiUrl" value="http://localhost:8888/api" style="width: 300px;"></label><br>
+        <label>Auth Token: <input type="text" id="authToken" placeholder="Enter your auth token" style="width: 300px;"></label><br>
+        <button onclick="testConnection()">Test Connection</button>
+    </div>
+
+    <div class="section">
+        <h2>Test PR Data Fetching</h2>
+        <button onclick="fetchAllPRs()">1. Fetch All PRs</button>
+        <button onclick="testIndividualEndpoints()">2. Test Individual PR Endpoints</button>
+        <div id="prDropdown" style="margin-top: 10px; display: none;">
+            <label>Select PR: <select id="prSelect" onchange="handlePRSelection()"></select></label>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Logs</h2>
+        <button onclick="clearLogs()">Clear Logs</button>
+        <div id="logs"></div>
+    </div>
+
+    <script>
+        let allPRs = [];
+        let selectedPR = null;
+
+        function log(message, type = 'info') {
+            const logsDiv = document.getElementById('logs');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log ${type}`;
+            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logsDiv.appendChild(logEntry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+        }
+
+        async function makeRequest(url, options = {}) {
+            const apiUrl = document.getElementById('apiUrl').value;
+            const authToken = document.getElementById('authToken').value;
+            
+            const fullUrl = `${apiUrl}${url}`;
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`,
+                'x-auth-token': authToken
+            };
+
+            try {
+                const response = await fetch(fullUrl, {
+                    ...options,
+                    headers: { ...headers, ...options.headers }
+                });
+                
+                const data = await response.json();
+                return { ok: response.ok, status: response.status, data };
+            } catch (error) {
+                return { ok: false, error: error.message };
+            }
+        }
+
+        async function testConnection() {
+            log('Testing connection...');
+            const result = await makeRequest('/purchase-requisition');
+            
+            if (result.ok) {
+                log('✓ Connection successful!', 'success');
+            } else {
+                log(`✗ Connection failed: ${result.error || result.status}`, 'error');
+            }
+        }
+
+        async function fetchAllPRs() {
+            log('Fetching all PRs from /purchase-requisition...');
+            const result = await makeRequest('/purchase-requisition');
+            
+            if (!result.ok) {
+                log(`Failed to fetch PRs: ${result.error || result.status}`, 'error');
+                return;
+            }
+
+            // Handle different response structures
+            const prsData = result.data.result || result.data.data || [];
+            allPRs = prsData;
+            
+            log(`Fetched ${prsData.length} PRs`, 'success');
+            
+            if (prsData.length > 0) {
+                log('\nFirst PR structure:');
+                const firstPR = prsData[0];
+                log(JSON.stringify({
+                    id: firstPR.id || firstPR._id,
+                    prNumber: firstPR.prNumber,
+                    status: firstPR.status,
+                    description: firstPR.description,
+                    hasItems: !!firstPR.items,
+                    itemsCount: firstPR.items?.length || 0
+                }, null, 2));
+
+                // Populate dropdown
+                const select = document.getElementById('prSelect');
+                select.innerHTML = '<option value="">Select a PR</option>';
+                
+                prsData.forEach(pr => {
+                    const option = document.createElement('option');
+                    option.value = pr.id || pr._id;
+                    option.textContent = `${pr.prNumber} - ${pr.description || 'No description'}`;
+                    select.appendChild(option);
+                });
+                
+                document.getElementById('prDropdown').style.display = 'block';
+            }
+        }
+
+        async function testIndividualEndpoints() {
+            if (allPRs.length === 0) {
+                log('Please fetch all PRs first', 'error');
+                return;
+            }
+
+            const testPR = allPRs[0];
+            const testId = testPR.id || testPR._id;
+            
+            log(`\nTesting individual PR endpoints for ID: ${testId}`);
+            
+            // Test /read/:id endpoint
+            log(`\nTesting /purchase-requisition/read/${testId}...`);
+            const readResult = await makeRequest(`/purchase-requisition/read/${testId}`);
+            if (readResult.ok) {
+                log('✓ /read/:id endpoint exists', 'success');
+                log(`Response: ${JSON.stringify(readResult.data, null, 2)}`);
+            } else {
+                log(`✗ /read/:id endpoint error: ${readResult.status || readResult.error}`, 'error');
+            }
+            
+            // Test /:id endpoint
+            log(`\nTesting /purchase-requisition/${testId}...`);
+            const directResult = await makeRequest(`/purchase-requisition/${testId}`);
+            if (directResult.ok) {
+                log('✓ /:id endpoint exists', 'success');
+                log(`Response: ${JSON.stringify(directResult.data, null, 2)}`);
+            } else {
+                log(`✗ /:id endpoint error: ${directResult.status || directResult.error}`, 'error');
+            }
+        }
+
+        function handlePRSelection() {
+            const select = document.getElementById('prSelect');
+            const selectedId = select.value;
+            
+            if (!selectedId) {
+                selectedPR = null;
+                return;
+            }
+
+            // Find PR from already fetched data
+            selectedPR = allPRs.find(pr => (pr.id || pr._id) === selectedId);
+            
+            if (!selectedPR) {
+                log('Selected PR not found in fetched data', 'error');
+                return;
+            }
+
+            log(`\n=== Selected PR: ${selectedPR.prNumber} ===`);
+            log('Using data from initial fetch (no additional API call):');
+            log(JSON.stringify({
+                id: selectedPR.id || selectedPR._id,
+                prNumber: selectedPR.prNumber,
+                status: selectedPR.status,
+                description: selectedPR.description,
+                items: selectedPR.items?.map(item => ({
+                    id: item.id || item._id,
+                    name: item.name || item.itemName,
+                    description: item.description || item.itemDescription,
+                    quantity: item.quantity,
+                    estimatedPrice: item.estimatedPrice,
+                    unit: item.unit
+                }))
+            }, null, 2));
+
+            // This is what the fixed code should do - use the already fetched data
+            log('\n✓ This is the correct approach - no additional API call needed!', 'success');
+        }
+    </script>
+</body>
+</html>

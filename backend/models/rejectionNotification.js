@@ -35,12 +35,9 @@ module.exports = (sequelize) => {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
       field: 'isRead'
-    }
-  }, {
+    }  }, {
     tableName: 'RejectionNotifications',
-    timestamps: true,
-    createdAt: 'createdAt',
-    updatedAt: 'updatedAt'
+    timestamps: false // Disable timestamps since the database table doesn't have these columns
   });
 
   RejectionNotification.associate = (models) => {

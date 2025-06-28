@@ -131,14 +131,13 @@ const ItemEditFromNotificationModal = ({
   };
 
   return (
-    <Modal
-      title={
+    <Modal      title={
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <EditOutlined style={{ marginRight: 8, color: '#1890ff' }} />
           <span>Edit & Recreate Item</span>
         </div>
       }
-      visible={visible}
+      open={visible}
       onCancel={handleCancel}
       width={900}
       footer={[

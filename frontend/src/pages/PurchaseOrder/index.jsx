@@ -43,9 +43,19 @@ function PurchaseOrder() {
     setLoading(true);
     setError(null);
     
-    request.list({ entity: 'purchase-order' })
-      .then(response => {
-        setPurchaseOrders(response.result || []);
+    fetch('http://localhost:8888/api/procurement/purchase-order', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
+      }
+    })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          setPurchaseOrders(data.result || []);
+        } else {
+          throw new Error(data.message || 'Failed to fetch Purchase Orders');
+        }
       })
       .catch(err => {
         setError(err.message || 'Error loading Purchase Orders');
@@ -105,11 +115,40 @@ function PurchaseOrder() {
         icon: <EditOutlined />,
         label: <Link to={`/purchase-order/update/${record._id || record.id}`}>{translate('Edit')}</Link>
       });
-      
       actions.push({
         key: 'submit',
         icon: <FileProtectOutlined />,
-        label: <Link to={`/purchase-order/submit/${record._id || record.id}`}>{translate('Submit for Approval')}</Link>
+        label: (
+          <span
+            onClick={async (e) => {
+              e.preventDefault();
+              if (window.confirm(translate('Are you sure you want to submit this Purchase Order for approval?'))) {
+                try {
+                  // Use fetch directly to avoid /create suffix
+                  const response = await fetch('http://localhost:8888/api/procurement/purchase-order/submit', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ id: record._id || record.id })
+                  });
+                  const data = await response.json();
+                  if (data.success) {
+                    window.location.reload();
+                  } else {
+                    alert(data.message || translate('Failed to submit Purchase Order'));
+                  }
+                } catch (err) {
+                  alert(err.message || translate('An error occurred'));
+                }
+              }
+            }}
+            style={{ cursor: 'pointer', color: '#1677ff' }}
+          >
+            {translate('Submit for Approval')}
+          </span>
+        )
       });
     }
 
@@ -146,10 +185,10 @@ function PurchaseOrder() {
     },
     {
       title: translate('Supplier'),
-      dataIndex: ['supplier', 'name'],
+      dataIndex: ['supplier', 'legalName'],
       key: 'supplier',
-      sorter: (a, b) => (a.supplier?.name || '').localeCompare(b.supplier?.name || ''),
-      render: (text, record) => text || record.supplier?.name || '-',
+      sorter: (a, b) => (a.supplier?.legalName || '').localeCompare(b.supplier?.legalName || ''),
+      render: (text, record) => text || record.supplier?.legalName || record.supplier?.name || record.supplierId || 'Not Assigned',
     },
     {
       title: translate('Date'),

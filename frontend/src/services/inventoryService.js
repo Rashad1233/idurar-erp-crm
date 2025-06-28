@@ -41,6 +41,27 @@ const inventoryService = {
       return errorHandler(error);
     }
   },
+
+  // Get only approved items eligible for inventory operations
+  getApprovedItemsForInventory: async (options = {}) => {
+    try {
+      includeToken();
+      let query = '?';
+      for (var key in options) {
+        query += key + '=' + options[key] + '&';
+      }
+      query = query.slice(0, -1); // Remove trailing &
+      
+      console.log('🔍 Fetching approved items for inventory with URL:', '/inventory-validation/approved-items' + (Object.keys(options).length ? query : ''));
+      
+      const response = await axios.get('/inventory-validation/approved-items' + (Object.keys(options).length ? query : ''));
+      
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error fetching approved items for inventory:', error);
+      return errorHandler(error);
+    }
+  },
     getItemMaster: async (id) => {
     try {
       includeToken();

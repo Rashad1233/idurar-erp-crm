@@ -6,10 +6,10 @@ const WarehouseCreate = lazyWithErrorHandling(() => import('@/pages/Warehouse/Wa
 const WarehouseRead = lazyWithErrorHandling(() => import('@/pages/Warehouse/WarehouseRead'));
 const WarehouseTransaction = lazyWithErrorHandling(() => import('@/pages/Warehouse/WarehouseTransaction'));
 const WarehouseLocations = lazyWithErrorHandling(() => import('@/pages/Warehouse/WarehouseLocations'));
-const StorageLocationCreate = lazyWithErrorHandling(() => import('@/pages/Warehouse/StorageLocationCreate'));
+const StorageLocationCreate = lazyWithErrorHandling(() => import('@/components/Warehouse/EnhancedStorageLocationCreate'));
 const StorageLocationEdit = lazyWithErrorHandling(() => import('@/pages/Warehouse/StorageLocationEdit'));
 const StorageLocationRead = lazyWithErrorHandling(() => import('@/pages/Warehouse/StorageLocationRead'));
-const BinLocationCreate = lazyWithErrorHandling(() => import('@/pages/Warehouse/BinLocationCreate'));
+const BinLocationCreate = lazyWithErrorHandling(() => import('@/components/Warehouse/EnhancedBinCreate'));
 const BinLocationEdit = lazyWithErrorHandling(() => import('@/pages/Warehouse/BinLocationEdit'));
 const BinLocationRead = lazyWithErrorHandling(() => import('@/pages/Warehouse/BinLocationRead'));
 

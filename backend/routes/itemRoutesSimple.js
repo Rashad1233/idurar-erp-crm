@@ -3,33 +3,73 @@ const router = express.Router();
 const { sequelize } = require('../models/sequelize');
 const { v4: uuidv4 } = require('uuid');
 
-// Get all item masters
+// Get all item masters with filtering support
 router.get('/item', async (req, res) => {
   try {
-    console.log('Fetching all item masters...');
+    const { filter, search, page = 1, limit = 100, includePricing } = req.query;
+    console.log('Fetching item masters with params:', { filter, search, page, limit, includePricing });
+    
+    let whereClause = '';
+    let replacements = {};
+    
+    // Add filter conditions
+    if (filter === 'approved') {
+      whereClause = 'WHERE status = :status';
+      replacements.status = 'APPROVED';
+    }
+    
+    // Add search conditions
+    if (search && search.trim()) {
+      const searchTerm = `%${search.trim()}%`;
+      if (whereClause) {
+        whereClause += ' AND (';
+      } else {
+        whereClause = 'WHERE (';
+      }
+      whereClause += `
+        "shortDescription" ILIKE :search OR 
+        "longDescription" ILIKE :search OR 
+        "standardDescription" ILIKE :search OR 
+        "itemNumber" ILIKE :search OR 
+        "manufacturerName" ILIKE :search OR 
+        "manufacturerPartNumber" ILIKE :search
+      )`;
+      replacements.search = searchTerm;
+    }
+    
+    // Calculate offset for pagination
+    const offset = (parseInt(page) - 1) * parseInt(limit);
     
     const query = `
       SELECT *
       FROM "ItemMasters"
+      ${whereClause}
       ORDER BY "createdAt" DESC
-      LIMIT 100;
+      LIMIT :limit OFFSET :offset;
     `;
     
+    replacements.limit = parseInt(limit);
+    replacements.offset = offset;
+    
     const items = await sequelize.query(query, {
+      replacements,
       type: sequelize.QueryTypes.SELECT
     });
     
     console.log(`Retrieved ${items.length} item masters`);
     
+    // Return in the format expected by the frontend
     return res.status(200).json({
       success: true,
-      result: items,
+      data: items, // Frontend expects 'data' not 'result'
+      result: items, // Keep 'result' for backward compatibility
       message: 'Item masters retrieved successfully'
     });
   } catch (error) {
     console.error('Error fetching item masters:', error);
     return res.status(500).json({
       success: false,
+      data: [],
       result: [],
       message: 'Failed to fetch item masters',
       error: error.message

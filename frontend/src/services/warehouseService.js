@@ -44,28 +44,13 @@ const warehouseService = {  // Storage Locations
     } catch (error) {
       return handleApiError(error, 'fetching', 'Storage Location');
     }
-  },
-  getStorageLocation: async (id) => {
+  },  getStorageLocation: async (id) => {
     try {
-      // First try the simple route for better reliability
-      try {
-        console.log(`🔍 Trying simple storage location detail route for ID: ${id}`);
-        const simpleResponse = await apiClient.get(`simple-storage-location/${id}`);
-        console.log('✅ Simple storage location detail route worked!');
-        return {
-          success: true,
-          data: simpleResponse.data.data
-        };
-      } catch (simpleError) {
-        console.warn('⚠️ Simple storage location detail route failed, falling back to original route', simpleError);
-        
-        // Fall back to original route
-        const response = await apiClient.get(`warehouse/storage-location/${id}`);
-        return {
-          success: true,
-          data: response.data.data
-        };
-      }
+      const response = await apiClient.get(`storage-locations/${id}`);
+      return {
+        success: true,
+        data: response.data.data
+      };
     } catch (error) {
       return handleApiError(error, 'fetching', 'Storage Location');
     }
@@ -141,10 +126,9 @@ const warehouseService = {  // Storage Locations
       return handleApiError(error, 'fetching', 'Bin Location');
     }
   },
-
   getBinLocation: async (id) => {
     try {
-      const response = await apiClient.get(`warehouse/bin-location/${id}`);
+      const response = await apiClient.get(`bin-locations/${id}`);
       return {
         success: true,
         data: response.data.data

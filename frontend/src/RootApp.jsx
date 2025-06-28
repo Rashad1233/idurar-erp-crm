@@ -1,7 +1,7 @@
 import './style/app.css';
 
 import React, { Suspense } from 'react';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { App as AntdApp } from 'antd';
 import store from '@/redux/store';
@@ -10,6 +10,10 @@ import { setNotificationApi } from '@/request/errorHandler';
 import { lazyWithErrorHandling } from '@/utils/lazyLoadHelper';
 
 const MimiApp = lazyWithErrorHandling(() => import('./apps/MimiApp'));
+const SupplierAcceptance = lazyWithErrorHandling(() => import('./pages/SupplierAcceptance'));
+const ContractAcceptance = lazyWithErrorHandling(() => import('./pages/ContractAcceptance'));
+const RFQResponse = lazyWithErrorHandling(() => import('./pages/RFQResponse'));
+const PurchaseOrderApproval = lazyWithErrorHandling(() => import('./pages/PurchaseOrderApproval'));
 
 // Notification Provider Component
 function NotificationProvider({ children }) {
@@ -38,9 +42,57 @@ export default function RootApp() {
       <Provider store={store}>
         <AntdApp>
           <NotificationProvider>
-            <Suspense fallback={<PageLoader />}>
-              <MimiApp />
-            </Suspense>
+            <Routes>
+              {/* Standalone supplier acceptance route - no ERP layout */}
+              <Route 
+                path="/supplier-acceptance/:token" 
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <SupplierAcceptance />
+                  </Suspense>
+                } 
+              />
+              
+              {/* Standalone contract acceptance route - no ERP layout */}
+              <Route 
+                path="/contract-acceptance/:contractId" 
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <ContractAcceptance />
+                  </Suspense>
+                } 
+              />
+              
+              {/* Standalone RFQ response route - no ERP layout */}
+              <Route 
+                path="/rfq-response/:token" 
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <RFQResponse />
+                  </Suspense>
+                } 
+              />
+              
+              {/* Standalone purchase order approval route - no ERP layout */}
+              <Route 
+                path="/po-approval/:token" 
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <PurchaseOrderApproval />
+                  </Suspense>
+                } 
+              />
+              
+              {/* All other routes go through the main ERP app */}
+              <Route 
+                path="/*" 
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <MimiApp />
+                  </Suspense>
+                } 
+              />
+            </Routes>
           </NotificationProvider>
         </AntdApp>
       </Provider>

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Frontend RFQ API</title>
+</head>
+<body>
+    <h1>Test Frontend RFQ API</h1>
+    <button onclick="testAPI()">Test RFQ API</button>
+    <div id="result"></div>
+
+    <script>
+        async function testAPI() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Loading...';
+            
+            try {
+                // Test 1: Direct API call
+                console.log('Testing direct API call...');
+                const response = await fetch('http://localhost:8888/api/procurement/rfq', {
+                    headers: {
+                        'Authorization': 'Bearer mock-token',
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                console.log('API Response:', data);
+                
+                resultDiv.innerHTML = `
+                    <h3>API Test Results:</h3>
+                    <p><strong>Status:</strong> ${response.status}</p>
+                    <p><strong>Success:</strong> ${data.success}</p>
+                    <p><strong>Count:</strong> ${data.count}</p>
+                    <p><strong>RFQs:</strong> ${data.data ? data.data.length : 0}</p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                resultDiv.innerHTML = `
+                    <h3>Error:</h3>
+                    <p style="color: red;">${error.message}</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

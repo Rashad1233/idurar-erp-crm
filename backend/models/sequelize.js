@@ -15,9 +15,8 @@ const sequelize = new Sequelize(
     host: 'localhost',
     port: 5432,
     dialect: 'postgres',
-    logging: false,
-    define: {
-      underscored: true,
+    logging: false,    define: {
+      underscored: false,
       timestamps: true,
       freezeTableName: false // Make sure Sequelize pluralizes table names
     },
@@ -33,8 +32,13 @@ const sequelize = new Sequelize(
 // Import models
 const User = require('./sequelize/User')(sequelize, DataTypes);
 const Contract = require('./sequelize/Contract')(sequelize, DataTypes);
+const ContractItem = require('./sequelize/ContractItem')(sequelize, DataTypes);
 const PurchaseRequisition = require('./sequelize/PurchaseRequisition')(sequelize, DataTypes);
 const PurchaseRequisitionItem = require('./sequelize/PurchaseRequisitionItem')(sequelize, DataTypes);
+const RequestForQuotation = require('./sequelize/RequestForQuotation')(sequelize, DataTypes);
+const RfqItem = require('./sequelize/RfqItem')(sequelize, DataTypes);
+const RfqSupplier = require('./sequelize/RfqSupplier')(sequelize, DataTypes);
+const RfqQuoteItem = require('./sequelize/RfqQuoteItem')(sequelize, DataTypes);
 const Supplier = require('./sequelize/Supplier')(sequelize, DataTypes);
 const ItemMaster = require('./sequelize/ItemMaster')(sequelize, DataTypes);
 const Inventory = require('./sequelize/Inventory')(sequelize, DataTypes);
@@ -53,7 +57,12 @@ module.exports = {
   User,
   PurchaseRequisition,
   PurchaseRequisitionItem,
+  RequestForQuotation,
+  RfqItem,
+  RfqSupplier,
+  RfqQuoteItem,
   Contract,
+  ContractItem,
   Supplier,
   ItemMaster,
   Inventory,

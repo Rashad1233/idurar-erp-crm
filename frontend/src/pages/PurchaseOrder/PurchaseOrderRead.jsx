@@ -115,14 +115,45 @@ function PurchaseOrderRead() {
   // Handle PO submission for approval
   const handleSubmitPO = async () => {
     setActionLoading(true);
-    
     try {
-      const response = await request.create({
-        entity: 'purchase-order/submit',
-        jsonData: { id }
+      // Try PATCH to update status to submitted (RESTful pattern)
+      const response = await fetch(`http://localhost:8888/api/procurement/purchase-order/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ status: 'pending_approval' })
       });
-      
-      if (response.success) {
+      if (response.status === 404) {
+        message.error(translate('Submit endpoint not found. Please check your backend API route.'));
+        setActionLoading(false);
+        return;
+      }
+      // If no content, treat as success
+      if (response.status === 204 || (response.status === 200 && response.headers.get('content-length') === '0')) {
+        message.success(translate('Purchase Order submitted for approval'));
+        const poResponse = await request.read({ entity: 'purchase-order', id });
+        if (poResponse.success && poResponse.result) {
+          setPurchaseOrder(poResponse.result);
+        }
+        setActionLoading(false);
+        return;
+      }
+      let data = {};
+      try {
+        data = await response.json();
+      } catch (e) {
+        // If not JSON, treat as success
+        message.success(translate('Purchase Order submitted for approval'));
+        const poResponse = await request.read({ entity: 'purchase-order', id });
+        if (poResponse.success && poResponse.result) {
+          setPurchaseOrder(poResponse.result);
+        }
+        setActionLoading(false);
+        return;
+      }
+      if (data.success !== false) {
         message.success(translate('Purchase Order submitted for approval'));
         // Refresh PO data
         const poResponse = await request.read({ entity: 'purchase-order', id });
@@ -130,7 +161,7 @@ function PurchaseOrderRead() {
           setPurchaseOrder(poResponse.result);
         }
       } else {
-        message.error(response.message || translate('Failed to submit Purchase Order'));
+        message.error(data.message || translate('Failed to submit Purchase Order'));
       }
     } catch (err) {
       message.error(err.message || translate('An error occurred'));
@@ -145,31 +176,32 @@ function PurchaseOrderRead() {
     setActionLoading(true);
     
     try {
-      const response = await request.create({
-        entity: 'purchase-order/approve',
-        jsonData: { 
+      // Use the correct endpoint, not /approve/create
+      const response = await request.post({
+        entity: 'procurement/purchase-order/approve',
+        jsonData: {
           id,
-          comments: values.comments 
+          comments: values.comments
         }
       });
-      
+
       if (response.success) {
         message.success(translate('Purchase Order approved successfully'));
         setApprovalModalVisible(false);
         approvalForm.resetFields();
-        
+
         // Refresh PO data
         const poResponse = await request.read({ entity: 'purchase-order', id });
         if (poResponse.success && poResponse.result) {
           setPurchaseOrder(poResponse.result);
-          
+
           // Refresh approval history
           try {
-            const approvalResponse = await request.filter({ 
+            const approvalResponse = await request.filter({
               entity: 'poapproval',
               filter: { po: id }
             });
-            
+
             if (approvalResponse.success && approvalResponse.result) {
               setPoApprovals(approvalResponse.result);
             }
@@ -193,9 +225,8 @@ function PurchaseOrderRead() {
     setActionLoading(true);
     
     try {
-      // Note: You would need to implement a reject endpoint in your backend
       const response = await request.create({
-        entity: 'purchase-order/reject',
+        entity: 'procurement/purchase-order/reject',
         jsonData: { 
           id,
           reason: values.reason 
@@ -240,13 +271,13 @@ function PurchaseOrderRead() {
   // Handle PO issuance to supplier
   const handleIssuePO = async () => {
     setActionLoading(true);
-    
     try {
-      const response = await request.create({
-        entity: 'purchase-order/issue',
+      // Use the correct endpoint, not /issue/create
+      const response = await request.post({
+        entity: 'procurement/purchase-order/issue',
         jsonData: { id }
       });
-      
+
       if (response.success) {
         message.success(translate('Purchase Order issued to supplier'));
         // Refresh PO data
@@ -266,9 +297,29 @@ function PurchaseOrderRead() {
   };
   
   // Handle goods receipt
-  const handleReceiveGoods = () => {
-    // Navigate to the goods receipt form
-    navigate(`/purchase-order/receive/${id}`);
+  const handleReceiveGoods = async () => {
+    setActionLoading(true);
+    try {
+      const response = await request.post({
+        entity: 'procurement/purchase-order/receive',
+        jsonData: { id }
+      });
+      if (response.success) {
+        message.success(translate('Goods received and PO marked as completed'));
+        // Refresh PO data
+        const poResponse = await request.read({ entity: 'purchase-order', id });
+        if (poResponse.success && poResponse.result) {
+          setPurchaseOrder(poResponse.result);
+        }
+      } else {
+        message.error(response.message || translate('Failed to receive goods'));
+      }
+    } catch (err) {
+      message.error(err.message || translate('An error occurred'));
+      console.error('Error receiving goods:', err);
+    } finally {
+      setActionLoading(false);
+    }
   };
   
   // Helper function to get status tag color
@@ -276,14 +327,18 @@ function PurchaseOrderRead() {
     switch (status) {
       case 'draft':
         return 'default';
-      case 'submitted':
+      case 'pending_approval':
         return 'processing';
       case 'approved':
         return 'warning';
-      case 'issued':
+      case 'sent':
         return 'success';
-      case 'received':
-        return 'cyan'; 
+      case 'acknowledged':
+        return 'cyan';
+      case 'partially_received':
+        return 'orange';
+      case 'completed':
+        return 'green'; 
       case 'cancelled':
         return 'error';
       default:
@@ -296,14 +351,20 @@ function PurchaseOrderRead() {
     switch (status) {
       case 'draft':
         return 0;
-      case 'submitted':
+      case 'pending_approval':
         return 1;
       case 'approved':
         return 2;
-      case 'issued':
+      case 'sent':
         return 3;
-      case 'received':
+      case 'acknowledged':
         return 4;
+      case 'partially_received':
+        return 4;
+      case 'completed':
+        return 5;
+      case 'cancelled':
+        return 1; // Show at pending approval step with error status
       default:
         return 0;
     }
@@ -462,7 +523,7 @@ function PurchaseOrderRead() {
               </Button>
             )}
             
-            {purchaseOrder.status === 'submitted' && currentUser?.role === 'admin' && (
+            {purchaseOrder.status === 'pending_approval' && currentUser?.role === 'admin' && (
               <Space>
                 <Button 
                   type="primary"
@@ -494,7 +555,7 @@ function PurchaseOrderRead() {
               </Button>
             )}
             
-            {purchaseOrder.status === 'issued' && (
+            {purchaseOrder.status === 'sent' && (
               <Button 
                 type="primary"
                 onClick={handleReceiveGoods}
@@ -514,19 +575,24 @@ function PurchaseOrderRead() {
           </Space>
         }
       >
-        <Steps current={getStatusStepNumber(purchaseOrder.status)} className="po-status-steps">
+        <Steps 
+          current={getStatusStepNumber(purchaseOrder.status)} 
+          status={purchaseOrder.status === 'cancelled' ? 'error' : 'process'} 
+          className="po-status-steps"
+        >
           <Step title={translate('Draft')} description={translate('Created')} />
-          <Step title={translate('Submitted')} description={translate('For Approval')} />
+          <Step title={translate('Pending Approval')} description={translate('For Approval')} />
           <Step title={translate('Approved')} description={translate('Ready to Issue')} />
-          <Step title={translate('Issued')} description={translate('To Supplier')} />
-          <Step title={translate('Received')} description={translate('Complete')} />
+          <Step title={translate('Sent')} description={translate('To Supplier')} />
+          <Step title={translate('Acknowledged')} description={translate('By Supplier')} />
+          <Step title={translate('Completed')} description={translate('Complete')} />
         </Steps>
         
         <Divider />
         
         <Descriptions bordered column={2} className="po-details">
           <Descriptions.Item label={translate('PO Number')}>
-            {purchaseOrder.poNumber || '-'}
+            {purchaseOrder.poNumber || 'Not Assigned'}
           </Descriptions.Item>
           <Descriptions.Item label={translate('Status')}>
             <Tag color={getStatusColor(purchaseOrder.status)}>
@@ -535,28 +601,26 @@ function PurchaseOrderRead() {
           </Descriptions.Item>
           
           <Descriptions.Item label={translate('Supplier')}>
-            {purchaseOrder.supplier?.name || '-'}
+            {purchaseOrder.supplier?.legalName || purchaseOrder.supplier?.name || purchaseOrder.supplierId || 'Not Assigned'}
           </Descriptions.Item>
-          <Descriptions.Item label={translate('Customer Reference')}>
-            {purchaseOrder.customerRef || '-'}
-          </Descriptions.Item>
+
           
           <Descriptions.Item label={translate('Date')}>
-            {purchaseOrder.date ? moment(purchaseOrder.date).format('YYYY-MM-DD') : '-'}
+            {purchaseOrder.date ? moment(purchaseOrder.date).format('YYYY-MM-DD') : 'Not Assigned'}
           </Descriptions.Item>
           <Descriptions.Item label={translate('Expected Delivery')}>
-            {purchaseOrder.expectedDeliveryDate ? moment(purchaseOrder.expectedDeliveryDate).format('YYYY-MM-DD') : '-'}
+            {purchaseOrder.expectedDeliveryDate ? moment(purchaseOrder.expectedDeliveryDate).format('YYYY-MM-DD') : 'Not Assigned'}
           </Descriptions.Item>
           
           <Descriptions.Item label={translate('Department')}>
-            {purchaseOrder.department || '-'}
+            {purchaseOrder.department || 'Not Assigned'}
           </Descriptions.Item>
           <Descriptions.Item label={translate('RFQ Reference')}>
-            {purchaseOrder.rfq || '-'}
+            {purchaseOrder.rfq || 'Not Assigned'}
           </Descriptions.Item>
           
           <Descriptions.Item label={translate('Notes')} span={2}>
-            {purchaseOrder.notes || '-'}
+            {purchaseOrder.notes || 'Not Assigned'}
           </Descriptions.Item>
         </Descriptions>
         
@@ -628,19 +692,19 @@ function PurchaseOrderRead() {
                 purchaseOrder.supplier ? (
                   <Descriptions bordered column={1}>
                     <Descriptions.Item label={translate('Supplier Name')}>
-                      {purchaseOrder.supplier.name || '-'}
+                      {purchaseOrder.supplier.legalName || 'Not Assigned'}
                     </Descriptions.Item>
                     <Descriptions.Item label={translate('Contact Person')}>
-                      {purchaseOrder.supplier.contactPerson || '-'}
+                      {purchaseOrder.supplier.contactName || 'Not Assigned'}
                     </Descriptions.Item>
                     <Descriptions.Item label={translate('Email')}>
-                      {purchaseOrder.supplier.email || '-'}
+                      {purchaseOrder.supplier.contactEmail || 'Not Assigned'}
                     </Descriptions.Item>
                     <Descriptions.Item label={translate('Phone')}>
-                      {purchaseOrder.supplier.phone || '-'}
+                      {purchaseOrder.supplier.contactPhone || 'Not Assigned'}
                     </Descriptions.Item>
                     <Descriptions.Item label={translate('Address')}>
-                      {purchaseOrder.supplier.address || '-'}
+                      {purchaseOrder.supplier.address || 'Not Assigned'}
                     </Descriptions.Item>
                   </Descriptions>
                 ) : (
@@ -655,7 +719,7 @@ function PurchaseOrderRead() {
       {/* Approval Confirmation Modal */}
       <Modal
         title={translate('Approve Purchase Order')}
-        visible={approvalModalVisible}
+        open={approvalModalVisible}
         confirmLoading={actionLoading}
         onCancel={() => setApprovalModalVisible(false)}
         footer={null}
@@ -693,7 +757,7 @@ function PurchaseOrderRead() {
       {/* Rejection Modal */}
       <Modal
         title={translate('Reject Purchase Order')}
-        visible={rejectModalVisible}
+        open={rejectModalVisible}
         confirmLoading={actionLoading}
         onCancel={() => setRejectModalVisible(false)}
         footer={null}

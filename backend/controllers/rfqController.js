@@ -1,8 +1,9 @@
 const nodemailer = require('nodemailer');
 const { 
   RequestForQuotation,
-  RFQLineItem,
-  RFQResponse,
+  RfqItem,
+  RfqSupplier,
+  RfqQuoteItem,
   Supplier,
   PurchaseRequisition,
   User,
@@ -12,10 +13,12 @@ const {
 const models = {
   RequestForQuotation,
   requestforquotation: RequestForQuotation,
-  RFQLineItem,
-  rfqlineitem: RFQLineItem,
-  RFQResponse,
-  rfqresponse: RFQResponse,
+  RfqItem,
+  rfqitem: RfqItem,
+  RfqSupplier,
+  rfqsupplier: RfqSupplier,
+  RfqQuoteItem,
+  rfqquoteitem: RfqQuoteItem,
   Supplier,
   supplier: Supplier,
   PurchaseRequisition,
@@ -23,7 +26,7 @@ const models = {
   User,
   user: User
 };
-const { generateNextNumber } = require('../utils/numberGenerator');
+const { generateRFQNumber: generateRFQNumberUtil } = require('../utils/numberGenerator');
 const config = require('../config/config');
 
 // Create Nodemailer transporter
@@ -39,8 +42,7 @@ const transporter = nodemailer.createTransport({
 
 // Generate RFQ number (format: RFQ-YYYYMMDD-XXXX)
 const generateRFQNumber = async () => {
-  const prefix = 'RFQ';
-  return generateNextNumber(prefix, RequestForQuotation);
+  return generateRFQNumberUtil();
 };
 
 // @desc    Create a new RFQ
@@ -75,7 +77,7 @@ exports.createRFQ = async (req, res) => {
       rfqNumber,
       purchaseRequisitionId,
       description,
-      submissionDeadline,
+      responseDeadline: submissionDeadline,
       status: 'draft',
       createdById: req.user.id,
       updatedById: req.user.id
@@ -83,13 +85,13 @@ exports.createRFQ = async (req, res) => {
 
     // Create RFQ line items
     await Promise.all(lineItems.map(item =>
-      RFQLineItem.create({
+      RfqItem.create({
         ...item,
-        rfqId: rfq.id
+        requestForQuotationId: rfq.id
       }, { transaction })
     ));
 
-    // Create RFQ responses for each supplier
+    // Create RFQ supplier records for each supplier
     const suppliers = await models.Supplier.findAll({
       where: {
         id: supplierIds
@@ -98,9 +100,12 @@ exports.createRFQ = async (req, res) => {
     });
 
     await Promise.all(suppliers.map(supplier =>
-      RFQResponse.create({
-        rfqId: rfq.id,
+      RfqSupplier.create({
+        requestForQuotationId: rfq.id,
         supplierId: supplier.id,
+        supplierName: supplier.legalName || supplier.tradeName,
+        contactEmail: supplier.contactEmail,
+        contactPhone: supplier.contactPhone,
         status: 'pending'
       }, { transaction })
     ));
@@ -133,38 +138,85 @@ exports.createRFQ = async (req, res) => {
 
 // Send RFQ email to supplier
 const sendRFQEmail = async (rfq, supplier) => {
-  const response = await RFQResponse.findOne({
-    where: {
-      rfqId: rfq.id,
-      supplierId: supplier.id
-    }
-  });
-
-  const supplierPortalUrl = `${config.baseUrl}/supplier-portal/rfq/${response.responseToken}`;
-
-  const mailOptions = {
-    from: config.email.from,
-    to: supplier.contactEmail,
-    cc: supplier.contactEmailSecondary,
-    subject: `Request for Quotation: ${rfq.rfqNumber}`,
-    html: `
-      <h2>Request for Quotation</h2>
-      <p>Dear ${supplier.tradeName},</p>
-      <p>You have received a new Request for Quotation (${rfq.rfqNumber}).</p>
-      <p><strong>Submission Deadline:</strong> ${new Date(rfq.submissionDeadline).toLocaleDateString()}</p>
-      <p>Please click the link below to view the RFQ details and submit your quotation:</p>
-      <p><a href="${supplierPortalUrl}">Access RFQ Portal</a></p>
-      <p>If you have any questions, please contact us.</p>
-      <br>
-      <p>Best regards,<br>Procurement Team</p>
-    `
-  };
-
   try {
-    await transporter.sendMail(mailOptions);
-    console.log(`RFQ email sent to ${supplier.contactEmail}`);
+    // Check if email configuration is available
+    if (!config.email.user || !config.email.password) {
+      console.error('Email configuration missing. Please set EMAIL_USER and EMAIL_PASSWORD in .env file');
+      return;
+    }
+
+    // Find the RFQ supplier record
+    const rfqSupplier = await RfqSupplier.findOne({
+      where: {
+        requestForQuotationId: rfq.id,
+        supplierId: supplier.id
+      }
+    });
+
+    if (!rfqSupplier) {
+      console.error(`RFQ supplier record not found for supplier ${supplier.id} and RFQ ${rfq.id}`);
+      return;
+    }
+
+    // Generate response token if not exists
+    if (!rfqSupplier.responseToken) {
+      const crypto = require('crypto');
+      const responseToken = crypto.randomBytes(32).toString('hex');
+      await rfqSupplier.update({ 
+        responseToken: responseToken,
+        tokenExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+      });
+      rfqSupplier.responseToken = responseToken;
+    }
+
+    const supplierPortalUrl = `${config.baseUrl}/rfq/supplier-approval/${rfq.id}/${rfqSupplier.supplierId}`;
+    
+    // Determine recipient email
+    const recipientEmail = supplier.contactEmail || supplier.email || rfqSupplier.contactEmail;
+    if (!recipientEmail) {
+      console.error(`No email address found for supplier: ${supplier.legalName || supplier.tradeName || 'Unknown'}`);
+      return;
+    }
+
+    const mailOptions = {
+      from: config.email.from,
+      to: recipientEmail,
+      cc: supplier.contactEmailSecondary || rfqSupplier.contactEmailSecondary,
+      subject: `Request for Quotation: ${rfq.rfqNumber}`,
+      html: `
+        <h2>Request for Quotation</h2>
+        <p>Dear ${supplier.tradeName || supplier.legalName || 'Supplier'},</p>
+        <p>You have received a new Request for Quotation (${rfq.rfqNumber}).</p>
+        <p><strong>Description:</strong> ${rfq.description}</p>
+        <p><strong>Submission Deadline:</strong> ${new Date(rfq.responseDeadline).toLocaleDateString()}</p>
+        <p>Please click the link below to view the RFQ details and submit your response:</p>
+        <p><a href="${supplierPortalUrl}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Access RFQ Portal</a></p>
+        <p>If you have any questions, please contact our procurement team.</p>
+        <br>
+        <p>Best regards,<br>Procurement Team</p>
+        <hr>
+        <p style="font-size: 12px; color: #666;">
+          RFQ Number: ${rfq.rfqNumber}<br>
+          Response Required By: ${new Date(rfq.responseDeadline).toLocaleDateString()}<br>
+          Link: <a href="${supplierPortalUrl}">${supplierPortalUrl}</a>
+        </p>
+      `
+    };
+
+    console.log(`Attempting to send RFQ email to: ${recipientEmail}`);
+    const result = await transporter.sendMail(mailOptions);
+    console.log(`✅ RFQ email sent successfully to ${recipientEmail}. Message ID: ${result.messageId}`);
+    
+    // Update the RFQ supplier record to mark as sent
+    await rfqSupplier.update({
+      status: 'sent',
+      sentAt: new Date()
+    });
+    
   } catch (error) {
-    console.error(`Error sending RFQ email to ${supplier.contactEmail}:`, error);
+    console.error(`❌ Error sending RFQ email:`, error);
+    console.error(`Supplier: ${supplier.legalName || supplier.tradeName || 'Unknown'}`);
+    console.error(`Email: ${supplier.contactEmail || supplier.email || 'No email'}`);
   }
 };
 
@@ -180,13 +232,18 @@ exports.getRFQs = async (req, res) => {
           as: 'purchaseRequisition'
         },
         {
-          model: Supplier,
+          model: RfqSupplier,
           as: 'suppliers',
-          through: { attributes: [] }
+          include: [
+            {
+              model: Supplier,
+              as: 'supplier'
+            }
+          ]
         },
         {
-          model: RFQLineItem,
-          as: 'lineItems'
+          model: RfqItem,
+          as: 'items'
         }
       ],
       order: [['createdAt', 'DESC']]
@@ -206,6 +263,199 @@ exports.getRFQs = async (req, res) => {
   }
 };
 
+// @desc    Approve RFQ by supplier
+// @route   POST /api/procurement/rfq/:id/supplier-approve
+// @access  Private (supplier portal)
+exports.supplierApproveRFQ = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  
+  try {
+    const { id } = req.params;
+    const { supplierId, comments } = req.body;
+
+    // Find the RFQ
+    const rfq = await RequestForQuotation.findByPk(id, { transaction });
+    if (!rfq) {
+      await transaction.rollback();
+      return res.status(404).json({
+        success: false,
+        message: 'RFQ not found'
+      });
+    }
+
+    // Find the supplier's RFQ record
+    const rfqSupplier = await RfqSupplier.findOne({
+      where: {
+        requestForQuotationId: id,
+        supplierId: supplierId
+      },
+      transaction
+    });
+
+    if (!rfqSupplier) {
+      await transaction.rollback();
+      return res.status(404).json({
+        success: false,
+        message: 'Supplier not found for this RFQ'
+      });
+    }
+
+    // Update supplier status to approved
+    await rfqSupplier.update({
+      status: 'approved',
+      respondedAt: new Date(),
+      notes: comments || null
+    }, { transaction });
+
+    // Check supplier responses and update RFQ status accordingly
+    const allSuppliers = await RfqSupplier.findAll({
+      where: {
+        requestForQuotationId: id
+      },
+      transaction
+    });
+
+    // Count suppliers by status
+    const approvedSuppliers = allSuppliers.filter(s => s.status === 'approved');
+    const rejectedSuppliers = allSuppliers.filter(s => s.status === 'rejected');
+    
+    // Update RFQ status based on supplier responses
+    let newRfqStatus = rfq.status;
+    
+    // If all suppliers rejected, mark as rejected
+    if (rejectedSuppliers.length === allSuppliers.length && allSuppliers.length > 0) {
+      newRfqStatus = 'rejected';
+    }
+    // If at least one supplier approved and RFQ is not already in_progress, mark as in_progress
+    else if (approvedSuppliers.length > 0 && rfq.status !== 'in_progress') {
+      newRfqStatus = 'in_progress';
+    }
+    
+    // Update RFQ status if it changed
+    if (newRfqStatus !== rfq.status) {
+      await rfq.update({
+        status: newRfqStatus
+      }, { transaction });
+    }
+
+    await transaction.commit();
+
+    res.json({
+      success: true,
+      message: 'RFQ approved by supplier successfully',
+      data: {
+        rfqId: id,
+        supplierId: supplierId,
+        allSuppliersApproved: approvedSuppliers.length === allSuppliers.length
+      }
+    });
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Error approving RFQ:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error approving RFQ',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Reject RFQ by supplier
+// @route   POST /api/procurement/rfq/:id/supplier-reject
+// @access  Private (supplier portal)
+exports.supplierRejectRFQ = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  
+  try {
+    const { id } = req.params;
+    const { supplierId, comments } = req.body;
+
+    // Find the RFQ
+    const rfq = await RequestForQuotation.findByPk(id, { transaction });
+    if (!rfq) {
+      await transaction.rollback();
+      return res.status(404).json({
+        success: false,
+        message: 'RFQ not found'
+      });
+    }
+
+    // Find the supplier's RFQ record
+    const rfqSupplier = await RfqSupplier.findOne({
+      where: {
+        requestForQuotationId: id,
+        supplierId: supplierId
+      },
+      transaction
+    });
+
+    if (!rfqSupplier) {
+      await transaction.rollback();
+      return res.status(404).json({
+        success: false,
+        message: 'Supplier not found for this RFQ'
+      });
+    }
+
+    // Update supplier status to rejected
+    await rfqSupplier.update({
+      status: 'rejected',
+      respondedAt: new Date(),
+      notes: comments || null
+    }, { transaction });
+
+    // Check supplier responses and update RFQ status accordingly
+    const allSuppliers = await RfqSupplier.findAll({
+      where: {
+        requestForQuotationId: id
+      },
+      transaction
+    });
+
+    // Count suppliers by status
+    const approvedSuppliers = allSuppliers.filter(s => s.status === 'approved');
+    const rejectedSuppliers = allSuppliers.filter(s => s.status === 'rejected');
+    
+    // Update RFQ status based on supplier responses
+    let newRfqStatus = rfq.status;
+    
+    // If all suppliers rejected, mark as rejected
+    if (rejectedSuppliers.length === allSuppliers.length && allSuppliers.length > 0) {
+      newRfqStatus = 'rejected';
+    }
+    // If at least one supplier approved and RFQ is not already in_progress, mark as in_progress
+    else if (approvedSuppliers.length > 0 && rfq.status !== 'in_progress') {
+      newRfqStatus = 'in_progress';
+    }
+    
+    // Update RFQ status if it changed
+    if (newRfqStatus !== rfq.status) {
+      await rfq.update({
+        status: newRfqStatus
+      }, { transaction });
+    }
+
+    await transaction.commit();
+
+    res.json({
+      success: true,
+      message: 'RFQ rejected by supplier successfully',
+      data: {
+        rfqId: id,
+        supplierId: supplierId
+      }
+    });
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Error rejecting RFQ:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error rejecting RFQ',
+      error: error.message
+    });
+  }
+};
+
 // @desc    Get RFQ by ID
 // @route   GET /api/procurement/rfq/:id
 // @access  Private
@@ -218,23 +468,22 @@ exports.getRFQ = async (req, res) => {
           as: 'purchaseRequisition'
         },
         {
-          model: Supplier,
+          model: RfqSupplier,
           as: 'suppliers',
-          through: { attributes: [] }
-        },
-        {
-          model: RFQLineItem,
-          as: 'lineItems'
-        },
-        {
-          model: RFQResponse,
-          as: 'responses',
           include: [
             {
               model: Supplier,
               as: 'supplier'
+            },
+            {
+              model: RfqQuoteItem,
+              as: 'quotedItems'
             }
           ]
+        },
+        {
+          model: RfqItem,
+          as: 'items'
         }
       ]
     });

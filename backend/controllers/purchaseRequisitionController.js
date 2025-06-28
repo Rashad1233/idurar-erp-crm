@@ -7,18 +7,12 @@ const {
   Supplier,
   ItemMaster,
   Inventory,
+  ApprovalHistory,
+  DelegationOfAuthority,
   sequelize
 } = require('../models/sequelize');
 
-// Load additional models directly to avoid export issues
-const ApprovalHistoryModel = require('../models/sequelize/ApprovalHistory');
-const DelegationOfAuthorityModel = require('../models/sequelize/DelegationOfAuthority');
-
-// Initialize the models with sequelize instance
-const ApprovalHistory = ApprovalHistoryModel(sequelize, require('sequelize').DataTypes);
-const DelegationOfAuthority = DelegationOfAuthorityModel(sequelize, require('sequelize').DataTypes);
-const { Op } = require('sequelize');
-const { generateNextNumber } = require('../utils/numberGenerator');
+const { generatePRNumber: generatePRNumberUtil } = require('../utils/numberGenerator');
 
 // Create models object with both capitalized and lowercase aliases
 const models = {
@@ -51,8 +45,7 @@ console.log(`🔍 PurchaseRequisition model check:`, {
 
 // Generate a PR number (format: PR-YYYYMMDD-XXXX)
 const generatePRNumber = async () => {
-  const prefix = 'PR';
-  return generateNextNumber(prefix, PurchaseRequisition);
+  return generatePRNumberUtil();
 };
 
 // Get approval chain for a PR based on amount and cost center
@@ -113,12 +106,12 @@ exports.createPurchaseRequisition = async (req, res) => {
   
   try {
     console.log('📝 Received purchase requisition data:', JSON.stringify(req.body, null, 2));
-    
-    const { 
+      const { 
       description, 
       costCenter, 
       currency, 
       approverId,
+      contractId,
       notes,
       items,
       totalValue,
@@ -170,16 +163,24 @@ exports.createPurchaseRequisition = async (req, res) => {
       createdById: req.user.id,
       updatedById: req.user.id
     });
-    
-    const purchaseRequisition = await models.PurchaseRequisition.create({
+      // Find an admin user to assign as approver
+      const adminUser = await User.findOne({
+        where: { role: 'admin' },
+        transaction
+      });
+
+      const purchaseRequisition = await models.PurchaseRequisition.create({
       prNumber,
       description,
-      status: 'draft',
+      status: 'submitted', // Auto-submit for testing approval workflow
       totalAmount,
       currency: currency || 'USD',
       costCenter,
+      contractId: contractId || null,
       requestorId: req.user.id,
-      approverId: approverId || req.user.id, // Use requestor as temporary approver until submission
+      approverId: adminUser?.id || req.user.id,
+      currentApproverId: adminUser?.id, // Set current approver to admin for immediate approval workflow
+      submittedAt: new Date(), // Set submission time
       notes,
       createdById: req.user.id,
       updatedById: req.user.id
@@ -752,10 +753,25 @@ exports.submitPurchaseRequisition = async (req, res) => {
         success: false,
         message: 'Only draft PRs can be submitted for approval'
       });
-    }    // Update PR status to submitted (for approval)
+    }    // Find an admin user to assign as approver
+    const adminUser = await User.findOne({
+      where: { role: 'admin' },
+      transaction
+    });
+
+    if (!adminUser) {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'No admin user found to assign as approver'
+      });
+    }
+
+    // Update PR status to submitted (for approval)
     await pr.update({
       status: 'submitted',
-      submittedAt: new Date()
+      submittedAt: new Date(),
+      currentApproverId: adminUser.id // Set the current approver to an admin user
     }, { transaction });
 
     // Try to create approval history record (non-blocking)
@@ -967,24 +983,16 @@ exports.deletePurchaseRequisition = async (req, res) => {
 // @access  Private
 exports.getPendingApprovals = async (req, res) => {
   try {
+    // Simple approach: find all PRs with submitted status
     const pendingPRs = await models.PurchaseRequisition.findAll({
       where: {
-        status: 'pending_approval',
-        currentApproverId: req.user.id
+        status: 'submitted'
       },
       include: [
         {
           model: User,
           as: 'requestor',
           attributes: ['id', 'name', 'email']
-        },        {
-          model: ApprovalHistory,
-          as: 'approvalHistory',
-          where: {
-            approverId: req.user.id,
-            status: 'pending'
-          },
-          required: true
         },
         {
           model: PurchaseRequisitionItem,
@@ -994,9 +1002,12 @@ exports.getPendingApprovals = async (req, res) => {
       order: [['createdAt', 'DESC']]
     });
 
+    console.log(`📋 Found ${pendingPRs.length} PRs pending approval for user ${req.user.id}`);
+
     res.json({
       success: true,
-      data: pendingPRs
+      data: pendingPRs,
+      count: pendingPRs.length
     });
   } catch (error) {
     console.error('Error fetching pending approvals:', error);

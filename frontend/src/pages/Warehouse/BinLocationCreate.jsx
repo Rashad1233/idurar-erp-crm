@@ -111,8 +111,7 @@ export default function BinLocationCreate() {
                       </Select>
                     </Form.Item>
                   </Col>
-                  <Col span={12}>
-                    <Form.Item
+                  <Col span={12}>                    <Form.Item
                       name="binCode"
                       label="Bin Code"
                       rules={[
@@ -121,12 +120,25 @@ export default function BinLocationCreate() {
                           message: 'Please enter a bin code',
                         },
                         {
-                          max: 10,
-                          message: 'Bin code cannot be longer than 10 characters',
+                          pattern: /^W\d{7}$/,
+                          message: 'Bin code must follow format: W + 7 digits (e.g., W1010105)',
                         },
                       ]}
+                      help="Format: W[Warehouse][Row][Shelf][Bin] - e.g., W1010105 (Warehouse 1, Row 01, Shelf 01, Bin 05)"
                     >
-                      <Input placeholder="e.g., A01, B02, C03" />
+                      <Input 
+                        placeholder="e.g., W1010105, W2020310" 
+                        maxLength={8}
+                        style={{ textTransform: 'uppercase' }}
+                        onChange={(e) => {
+                          // Auto-uppercase and add W prefix if needed
+                          let value = e.target.value.toUpperCase();
+                          if (value && !value.startsWith('W')) {
+                            value = 'W' + value;
+                          }
+                          form.setFieldValue('binCode', value);
+                        }}
+                      />
                     </Form.Item>
                   </Col>
                 </Row>
@@ -136,9 +148,8 @@ export default function BinLocationCreate() {
                     <Form.Item
                       name="description"
                       label="Description"
-                    >
-                      <TextArea 
-                        placeholder="Enter bin description" 
+                    >                      <TextArea 
+                        placeholder="e.g., Warehouse 1, Row 01, Shelf 01, Bin 05" 
                         autoSize={{ minRows: 2, maxRows: 4 }}
                       />
                     </Form.Item>

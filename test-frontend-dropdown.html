@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Item Master Dropdown</title>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <h1>Test Item Master Dropdown</h1>
+    <button onclick="loadItems()">Load Items</button>
+    <div id="results"></div>
+    <select id="itemDropdown" style="width: 400px; margin-top: 20px;">
+        <option value="">Select an item...</option>
+    </select>
+
+    <script>
+        async function loadItems() {
+            const resultsDiv = document.getElementById('results');
+            const dropdown = document.getElementById('itemDropdown');
+            
+            try {
+                resultsDiv.innerHTML = '<p>🔄 Loading items...</p>';
+                console.log('🔍 Making API call to load items...');
+                console.log('🔍 URL:', 'http://localhost:8888/api/item?filter=approved&page=1&limit=100&includePricing=true');
+                
+                const response = await axios.get('http://localhost:8888/api/item?filter=approved&page=1&limit=100&includePricing=true', {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    withCredentials: true
+                });
+                
+                console.log('📡 API Response Status:', response.status);
+                console.log('📡 API Response Data:', response.data);
+                console.log('📡 Response.data.success:', response.data.success);
+                console.log('📡 Response.data.data:', response.data.data);
+                console.log('📡 Response.data.result:', response.data.result);
+                
+                // Check both 'data' and 'result' fields (backend returns both)
+                const items = response.data.data || response.data.result || [];
+                console.log('📡 Items array:', items);
+                console.log('📡 Items length:', items.length);
+                
+                if (response.data.success && items.length > 0) {
+                    resultsDiv.innerHTML = `<p>✅ Successfully loaded ${items.length} items!</p>`;
+                    console.log('✅ Processing items for dropdown...');
+                    
+                    // Clear existing options except the first one
+                    dropdown.innerHTML = '<option value="">Select an item...</option>';
+                    
+                    // Add items to dropdown
+                    items.forEach((item, index) => {
+                        console.log(`📝 Processing item ${index + 1}:`, item);
+                        const option = document.createElement('option');
+                        option.value = item.id;
+                        option.textContent = `${item.itemNumber} - ${item.shortDescription}`;
+                        dropdown.appendChild(option);
+                    });
+                    
+                    console.log('✅ Dropdown populated with', items.length, 'items');
+                    
+                    // Display first few items
+                    const itemList = items.slice(0, 3).map(item => 
+                        `<li><strong>${item.itemNumber}</strong>: ${item.shortDescription} (${item.status})</li>`
+                    ).join('');
+                    
+                    resultsDiv.innerHTML += `<h3>Sample Items:</h3><ul>${itemList}</ul>`;
+                    
+                } else if (response.data.success && items.length === 0) {
+                    resultsDiv.innerHTML = '<p>⚠️ API call successful but no items returned</p>';
+                    console.log('⚠️ API successful but no items found');
+                } else {
+                    resultsDiv.innerHTML = '<p>❌ API call failed or returned unsuccessful response</p>';
+                    console.error('❌ API returned unsuccessful response:', response.data);
+                }
+                
+            } catch (error) {
+                console.error('❌ Error loading items:', error);
+                console.error('❌ Error details:', error.response);
+                
+                let errorMsg = `<p>❌ Error: ${error.message}</p>`;
+                
+                if (error.response) {
+                    errorMsg += `<p>Status: ${error.response.status}</p>`;
+                    errorMsg += `<p>Status Text: ${error.response.statusText}</p>`;
+                    errorMsg += `<p>Data: ${JSON.stringify(error.response.data)}</p>`;
+                }
+                
+                if (error.code) {
+                    errorMsg += `<p>Error Code: ${error.code}</p>`;
+                }
+                
+                resultsDiv.innerHTML = errorMsg;
+            }
+        }
+        
+        // Auto-load items when page loads
+        window.onload = function() {
+            loadItems();
+        };
+    </script>
+</body>
+</html>

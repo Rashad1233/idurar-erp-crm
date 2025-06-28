@@ -8,6 +8,8 @@ const {
 } = require('../models/sequelize');
 const { Op } = require('sequelize');
 const { generateNextNumber } = require('../utils/numberGenerator');
+const crypto = require('crypto');
+const emailService = require('../services/emailService');
 
 // Create models object with both capitalized and lowercase aliases
 const models = {
@@ -71,7 +73,7 @@ exports.createSupplier = async (req, res) => {
     
     // Generate supplier number
     const supplierNumber = await generateSupplierNumber();
-      // Create the supplier
+      // Create the supplier with pending_approval status
     const supplier = await models.Supplier.create({
       supplierNumber,
       legalName,
@@ -90,7 +92,7 @@ exports.createSupplier = async (req, res) => {
       taxId,
       registrationNumber,
       complianceChecked: complianceChecked || false,
-      status: 'active',
+      status: 'pending_approval', // Set to pending_approval by default
       notes,
       createdById: req.user.id,
       updatedById: req.user.id
@@ -380,24 +382,49 @@ exports.deleteSupplier = async (req, res) => {
   const transaction = await sequelize.transaction();
   
   try {
-    const supplier = await models.Supplier.findByPk(req.params.id, {
-      include: [
-        {
-          model: Contract,
-          as: 'contracts'
-        },
-        {
-          model: PurchaseOrder,
-          as: 'purchaseOrders'
+    // Try to find supplier with associations, but handle gracefully if models don't exist
+    let supplier;
+    try {
+      // First try to get supplier without associations to be safe
+      supplier = await models.Supplier.findByPk(req.params.id);
+      
+      if (!supplier) {
+        await transaction.rollback();
+        return res.status(404).json({
+          success: false,
+          message: 'Supplier not found'
+        });
+      }
+      
+      // Then try to check for associated records using separate queries
+      let hasContracts = false;
+      if (models.Contract) {
+        try {
+          const contractCount = await models.Contract.count({
+            where: { supplierId: req.params.id }
+          });
+          hasContracts = contractCount > 0;
+        } catch (err) {
+          console.warn('Could not check contract associations:', err.message);
         }
-      ]
-    });
-    
-    if (!supplier) {
+      }
+      
+      // Check if supplier has associated contracts
+      if (hasContracts) {
+        await transaction.rollback();
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot delete supplier with associated contracts'
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error finding supplier:', error);
       await transaction.rollback();
-      return res.status(404).json({
+      return res.status(500).json({
         success: false,
-        message: 'Supplier not found'
+        message: 'Error finding supplier',
+        error: error.message
       });
     }
     
@@ -414,19 +441,12 @@ exports.deleteSupplier = async (req, res) => {
       });
     }
     
-    // Check if supplier has associated contracts or purchase orders
-    if (supplier.contracts.length > 0 || supplier.purchaseOrders.length > 0) {
-      await transaction.rollback();
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot delete supplier with associated contracts or purchase orders'
-      });
-    }
-    
     // Delete supplier
+    console.log(`🔍 Deleting supplier: ${supplier.legalName} (ID: ${supplier.id})`);
     await supplier.destroy({ transaction });
     
     await transaction.commit();
+    console.log(`✅ Successfully deleted supplier: ${supplier.legalName}`);
     
     res.status(200).json({
       success: true,
@@ -434,10 +454,308 @@ exports.deleteSupplier = async (req, res) => {
     });
   } catch (error) {
     await transaction.rollback();
+    console.error('❌ Error deleting supplier:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to delete supplier',
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+};
+
+// Approve Supplier - Changes status to pending_supplier_acceptance and sends email
+const approveSupplier = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  
+  try {
+    const { id } = req.params;
+    const { approvalNotes } = req.body;
+    
+    // Check if user is authenticated
+    if (!req.user || !req.user.id) {
+      await transaction.rollback();
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
+    
+    // Find supplier
+    const supplier = await models.Supplier.findByPk(id, { transaction });
+    if (!supplier) {
+      await transaction.rollback();
+      return res.status(404).json({
+        success: false,
+        message: 'Supplier not found'
+      });
+    }
+    
+    // Check if supplier is in pending_approval status
+    if (supplier.status !== 'pending_approval') {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: `Supplier cannot be approved. Current status: ${supplier.status}`
+      });
+    }
+    
+    // Generate acceptance token
+    const crypto = require('crypto');
+    const acceptanceToken = crypto.randomBytes(32).toString('hex');
+    
+    // Update supplier
+    await supplier.update({
+      status: 'pending_supplier_acceptance',
+      approvedById: req.user.id,
+      approvedAt: new Date(),
+      acceptanceToken,
+      notes: approvalNotes ? `${supplier.notes || ''}\n\nApproval Notes: ${approvalNotes}` : supplier.notes
+    }, { transaction });
+    
+    await transaction.commit();
+    
+    // Send acceptance email to supplier
+    try {
+      const emailResult = await emailService.sendSupplierApprovalEmail(supplier, {
+        acceptanceToken,
+        approvalNotes
+      });
+      
+      if (emailResult.success) {
+        console.log('✅ Supplier approval email sent successfully');
+        if (emailResult.previewUrl) {
+          console.log('📧 Email preview URL:', emailResult.previewUrl);
+        }
+      } else {
+        console.error('❌ Failed to send supplier approval email:', emailResult.error);
+      }
+    } catch (emailError) {
+      console.error('❌ Error sending supplier acceptance email:', emailError);
+      // Don't fail the entire operation if email fails
+    }
+    
+    console.log(`✅ Supplier approved: ${supplier.legalName} by user ${req.user.id}`);
+    
+    res.status(200).json({
+      success: true,
+      message: 'Supplier approved successfully. Acceptance email sent.',
+      data: {
+        id: supplier.id,
+        status: 'pending_supplier_acceptance',
+        approvedAt: supplier.approvedAt
+      }
+    });
+  } catch (error) {
+    await transaction.rollback();
+    console.error('❌ Error approving supplier:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to approve supplier',
       error: error.message
     });
   }
+};
+
+// Reject Supplier
+const rejectSupplier = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  
+  try {
+    const { id } = req.params;
+    const { rejectionReason } = req.body;
+    
+    // Check if user is authenticated
+    if (!req.user || !req.user.id) {
+      await transaction.rollback();
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
+    
+    // Find supplier
+    const supplier = await models.Supplier.findByPk(id, { transaction });
+    if (!supplier) {
+      await transaction.rollback();
+      return res.status(404).json({
+        success: false,
+        message: 'Supplier not found'
+      });
+    }
+    
+    // Check if supplier is in pending_approval status
+    if (supplier.status !== 'pending_approval') {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: `Supplier cannot be rejected. Current status: ${supplier.status}`
+      });
+    }
+    
+    // Update supplier
+    await supplier.update({
+      status: 'rejected',
+      approvedById: req.user.id,
+      approvedAt: new Date(),
+      notes: rejectionReason ? `${supplier.notes || ''}\n\nRejection Reason: ${rejectionReason}` : supplier.notes
+    }, { transaction });
+    
+    await transaction.commit();
+    
+    console.log(`✅ Supplier rejected: ${supplier.legalName} by user ${req.user.id}`);
+    
+    res.status(200).json({
+      success: true,
+      message: 'Supplier rejected successfully',
+      data: {
+        id: supplier.id,
+        status: 'rejected'
+      }
+    });
+  } catch (error) {
+    await transaction.rollback();
+    console.error('❌ Error rejecting supplier:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reject supplier',
+      error: error.message
+    });
+  }
+};
+
+// Supplier accepts our offer
+const supplierAcceptance = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  
+  try {
+    const { token } = req.params;
+    const { action } = req.body; // 'accept' or 'decline'
+    
+    // Find supplier by acceptance token
+    const supplier = await models.Supplier.findOne({
+      where: { acceptanceToken: token },
+      transaction
+    });
+    
+    if (!supplier) {
+      await transaction.rollback();
+      return res.status(404).json({
+        success: false,
+        message: 'Invalid or expired acceptance link'
+      });
+    }
+    
+    // Check if supplier is in pending_supplier_acceptance status
+    if (supplier.status !== 'pending_supplier_acceptance') {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'This supplier has already been processed'
+      });
+    }
+    
+    if (action === 'accept') {
+      // Supplier accepts - make them active
+      await supplier.update({
+        status: 'active',
+        supplierAcceptedAt: new Date(),
+        acceptanceToken: null // Clear token after use
+      }, { transaction });
+      
+      await transaction.commit();
+      
+      console.log(`✅ Supplier accepted offer: ${supplier.legalName}`);
+      
+      res.status(200).json({
+        success: true,
+        message: 'Welcome! You have successfully joined our supplier network.',
+        data: {
+          supplierName: supplier.legalName,
+          status: 'active'
+        }
+      });
+    } else if (action === 'decline') {
+      // Supplier declines - mark as rejected
+      await supplier.update({
+        status: 'rejected',
+        acceptanceToken: null // Clear token after use
+      }, { transaction });
+      
+      await transaction.commit();
+      
+      console.log(`ℹ️ Supplier declined offer: ${supplier.legalName}`);
+      
+      res.status(200).json({
+        success: true,
+        message: 'We understand. Thank you for your time.',
+        data: {
+          supplierName: supplier.legalName,
+          status: 'declined'
+        }
+      });
+    } else {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid action. Must be "accept" or "decline"'
+      });
+    }
+  } catch (error) {
+    await transaction.rollback();
+    console.error('❌ Error processing supplier acceptance:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to process supplier response',
+      error: error.message
+    });
+  }
+};
+
+// Get pending approval suppliers (for DoFA review page)
+const getPendingApprovalSuppliers = async (req, res) => {
+  try {
+    const suppliers = await models.Supplier.findAll({
+      where: { status: 'pending_approval' },
+      include: [
+        {
+          model: models.User,
+          as: 'createdBy',
+          attributes: ['id', 'name', 'email']
+        }
+      ],
+      order: [['createdAt', 'ASC']]
+    });
+    
+    res.status(200).json({
+      success: true,
+      result: suppliers,
+      pagination: {
+        total: suppliers.length,
+        page: 1,
+        pages: 1
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error fetching pending approval suppliers:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch pending approval suppliers',
+      error: error.message
+    });
+  }
+};
+
+
+
+module.exports = {
+  createSupplier: exports.createSupplier,
+  getSuppliers: exports.getSuppliers,
+  getSupplierById: exports.getSupplier, // Note: the function is named getSupplier, not getSupplierById
+  updateSupplier: exports.updateSupplier,
+  deleteSupplier: exports.deleteSupplier,
+  approveSupplier,
+  rejectSupplier,
+  supplierAcceptance,
+  getPendingApprovalSuppliers
 };

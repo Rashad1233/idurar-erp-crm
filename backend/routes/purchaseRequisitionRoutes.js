@@ -11,9 +11,13 @@ const {
   getPendingApprovals
 } = require('../controllers/purchaseRequisitionController');
 const { protect } = require('../middleware/authMiddleware');
+const enhancePRWithUserInfo = require('../middleware/enhancePRWithUserInfo');
 
 // All routes are protected
 router.use(protect);
+
+// Apply the enhancePRWithUserInfo middleware to all responses
+router.use(enhancePRWithUserInfo);
 
 // Purchase Requisition routes
 router.route('/')
@@ -29,20 +33,11 @@ router.route('/:id')
   .delete(deletePurchaseRequisition);
 
 router.route('/:id/submit')
-  .post(submitPurchaseRequisition);
+  .post(submitPurchaseRequisition)
+  .put(submitPurchaseRequisition);  // Support both POST and PUT
 
 router.route('/:id/approve')
-  .post(approvePurchaseRequisition);
-
-router.route('/:id')
-  .get(getPurchaseRequisition)
-  .put(updatePurchaseRequisition)
-  .delete(deletePurchaseRequisition);
-
-router.route('/:id/submit')
-  .put(submitPurchaseRequisition);
-
-router.route('/:id/approve')
-  .put(approvePurchaseRequisition);
+  .post(approvePurchaseRequisition)
+  .put(approvePurchaseRequisition);  // Support both POST and PUT
 
 module.exports = router;

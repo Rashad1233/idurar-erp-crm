@@ -12,6 +12,12 @@ const {
   getRFQsByPR,
   createRFQFromPR
 } = require('../controllers/requestForQuotationController');
+
+// Import supplier approval functions from rfqController
+const {
+  supplierApproveRFQ,
+  supplierRejectRFQ
+} = require('../controllers/rfqController');
 const { protect } = require('../middleware/authMiddleware');
 
 // All routes are protected
@@ -44,5 +50,12 @@ router.route('/by-pr/:prId')
 
 router.route('/from-pr/:prId')
   .post(createRFQFromPR);
+
+// Supplier approval routes
+router.route('/:id/supplier-approve')
+  .post(supplierApproveRFQ);
+
+router.route('/:id/supplier-reject')
+  .post(supplierRejectRFQ);
 
 module.exports = router;

@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   Button, 
   Table, 
   Tag, 
   Space, 
   Dropdown, 
-  Menu,
   Card,
   Input,
   Spin,
   Alert,
-  Badge
+  Badge,
+  Tooltip
 } from 'antd';
 import {
   PlusOutlined,
@@ -22,7 +22,8 @@ import {
   ShoppingCartOutlined,
   EditOutlined,
   EyeOutlined,
-  SearchOutlined
+  SearchOutlined,
+  CheckOutlined
 } from '@ant-design/icons';
 
 import useLanguage from '@/locale/useLanguage';
@@ -31,6 +32,7 @@ import SearchItem from '@/components/SearchItem';
 
 function RFQ() {
   const translate = useLanguage();
+  const navigate = useNavigate();
   
   const [rfqs, setRFQs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,11 +44,17 @@ function RFQ() {
     setLoading(true);
     setError(null);
     
-    request.list({ entity: 'rfq' })
-      .then(response => {
-        setRFQs(response.result || []);
+    request
+      .get({ entity: 'procurement/rfq' })
+      .then((response) => {
+        if (response.success) {
+          console.log('RFQ list response:', response);
+          setRFQs(response.result || response.data || []);
+        } else {
+          throw new Error(response.message || 'Failed to fetch RFQs');
+        }
       })
-      .catch(err => {
+      .catch((err) => {
         setError(err.message || 'Error loading RFQs');
       })
       .finally(() => {
@@ -72,47 +80,76 @@ function RFQ() {
         return 'error';
       case 'po_created':
         return 'cyan';
+      case 'approved_by_supplier':
+        return 'success';
       default:
         return 'default';
     }
   };
   
-  const getRFQActions = (record) => (
-    <Menu>      <Menu.Item key="view" icon={<EyeOutlined />}>
-        <Link to={`/rfq/read/${record.id || record._id}`}>{translate('View Details')}</Link>
-      </Menu.Item>
+  const getRFQActions = (record) => {
+    const items = [
+      {
+        key: 'view',
+        icon: <EyeOutlined />,
+        label: translate('View Details'),
+        onClick: () => navigate(`/rfq/read/${record.id || record._id}`)
+      }
+    ];
+
+    if (record.status === 'draft') {
+      items.push({
+        key: 'edit',
+        icon: <EditOutlined />,
+        label: translate('Edit'),
+        onClick: () => navigate(`/rfq/update/${record.id || record._id}`)
+      });
       
-      {record.status === 'draft' && (
-        <Menu.Item key="edit" icon={<EditOutlined />}>
-          <Link to={`/rfq/update/${record.id || record._id}`}>{translate('Edit')}</Link>
-        </Menu.Item>
-      )}
-      
-      {record.status === 'draft' && (
-        <Menu.Item key="send" icon={<MailOutlined />}>
-          <Link to={`/rfq/send/${record.id || record._id}`}>{translate('Send to Suppliers')}</Link>
-        </Menu.Item>
-      )}
-      
-      {(record.status === 'quoted' || record.status === 'closed') && (
-        <Menu.Item key="compare" icon={<CalculatorOutlined />}>
-          <Link to={`/rfq/comparison/${record.id || record._id}`}>{translate('Compare Quotes')}</Link>
-        </Menu.Item>
-      )}
-        {record.status === 'closed' && (
-        <Menu.Item key="createpo" icon={<ShoppingCartOutlined />}>
-          <Link to={`/purchase-order/create?rfqId=${record.id || record._id}`}>{translate('Create PO')}</Link>
-        </Menu.Item>
-      )}
-    </Menu>
-  );
+      items.push({
+        key: 'send',
+        icon: <MailOutlined />,
+        label: translate('Send to Suppliers'),
+        onClick: () => navigate(`/rfq/send/${record.id || record._id}`)
+      });
+    }
+
+    if (record.status === 'quoted' || record.status === 'closed') {
+      items.push({
+        key: 'compare',
+        icon: <CalculatorOutlined />,
+        label: translate('Compare Quotes'),
+        onClick: () => navigate(`/rfq/comparison/${record.id || record._id}`)
+      });
+    }
+
+    if (record.status === 'sent' || record.status === 'in_progress') {
+      items.push({
+        key: 'supplier-approval',
+        icon: <CheckOutlined />,
+        label: translate('Supplier Approval'),
+        onClick: () => navigate(`/rfq/supplier-approval/${record.id || record._id}`)
+      });
+    }
+
+    if (record.status === 'closed') {
+      items.push({
+        key: 'createpo',
+        icon: <ShoppingCartOutlined />,
+        label: translate('Create PO'),
+        onClick: () => navigate(`/purchase-order/create?rfqId=${record.id || record._id}`)
+      });
+    }
+
+    return items;
+  };
     const columns = [
     {
       title: translate('RFQ Number'),
-      dataIndex: 'number',
-      key: 'number',      render: (text, record) => {
+      dataIndex: 'rfqNumber',
+      key: 'rfqNumber',
+      render: (text, record) => {
         // Handle both number and rfqNumber fields to ensure compatibility
-        const displayNumber = text || record.rfqNumber || 'N/A';
+        const displayNumber = text || record.number || 'N/A';
         return <Link to={`/rfq/read/${record.id || record._id}`}>{displayNumber}</Link>;
       },
     },    {
@@ -133,8 +170,8 @@ function RFQ() {
     },
     {
       title: translate('Bid Closing Date'),
-      dataIndex: 'bidClosingDate',
-      key: 'bidClosingDate',
+      dataIndex: 'responseDeadline',
+      key: 'responseDeadline',
       render: (date) => date ? new Date(date).toLocaleDateString() : '-',
     },
     {
@@ -143,38 +180,45 @@ function RFQ() {
       render: (_, record) => {
         const supplierCount = record.suppliers?.length || 0;
         const quotedCount = record.suppliers?.filter(s => s.status === 'quoted')?.length || 0;
-        
+        const supplierNames = record.suppliers?.map(s => s.supplier?.legalName || s.supplier?.tradeName || 'Unknown').join(', ');
+
         return (
-          <Space>
+          <Space direction="vertical" size="small">
             <Badge count={quotedCount} style={{ backgroundColor: '#52c41a' }}>
               <Tag color="blue">
                 <ShopOutlined /> {supplierCount}
               </Tag>
             </Badge>
+        <Tooltip title={supplierNames}>
+          <div style={{ maxWidth: 300, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {supplierNames}
+          </div>
+        </Tooltip>
           </Space>
         );
       },
     },
     {
       title: translate('Related PR'),
-      dataIndex: 'prId',
-      key: 'prId',
-      render: (prId, record) => prId ? (
-        <Link to={`/purchase-requisition/read/${prId}`}>
-          {record.prNumber || prId}
+      dataIndex: 'purchaseRequisitionId',
+      key: 'purchaseRequisitionId',
+      render: (_, record) => record.purchaseRequisition ? (
+        <Link to={`/purchase-requisition/read/${record.purchaseRequisition.id}`}>
+          {record.purchaseRequisition.prNumber || record.purchaseRequisition.id}
         </Link>
       ) : '-',
     },
     {
       title: translate('Created Date'),
-      dataIndex: 'created',
-      key: 'created',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
       render: (date) => date ? new Date(date).toLocaleDateString() : '-',
     },
     {
-      title: translate('Actions'),      key: 'actions',
+      title: translate('Actions'),
+      key: 'actions',
       render: (_, record) => (
-        <Dropdown menu={{items: getRFQActions(record)}} trigger={['click']}>
+        <Dropdown menu={{ items: getRFQActions(record) }} trigger={['click']}>
           <Button>
             {translate('Actions')} <DownOutlined />
           </Button>
@@ -185,8 +229,8 @@ function RFQ() {
   // Filter RFQs based on search query  
   const filteredRFQs = searchQuery
     ? rfqs.filter((rfq) => 
-        (rfq.number && rfq.number?.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (rfq.rfqNumber && rfq.rfqNumber?.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (rfq.number && rfq.number?.toLowerCase().includes(searchQuery.toLowerCase())) ||
         rfq.description?.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : rfqs;

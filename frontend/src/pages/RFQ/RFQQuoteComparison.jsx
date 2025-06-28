@@ -54,7 +54,9 @@ function RFQQuoteComparison() {
     
     request.read({ entity: 'rfq', id })
       .then(response => {
-        const rfqData = response.result;
+        console.log('🔍 RFQ Read Response:', response);
+        const rfqData = response.result || response.data;
+        console.log('🔍 RFQ Data:', rfqData);
         setRFQ(rfqData);
         
         // Extract suppliers and items

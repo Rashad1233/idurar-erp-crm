@@ -25,7 +25,10 @@ module.exports = (models) => {
     Contract,
     ContractItem,
     ApprovalHistory,
-    DelegationOfAuthority
+    DelegationOfAuthority,
+    Customer,
+    SalesOrder,
+    SalesOrderItem
   } = models;
 
   // Helper function to safely set up associations
@@ -150,5 +153,19 @@ module.exports = (models) => {
   }
   if (DelegationOfAuthority && typeof DelegationOfAuthority.associate === 'function') {
     DelegationOfAuthority.associate(models);
+  }
+  if (models.Notification && typeof models.Notification.associate === 'function') {
+    models.Notification.associate(models);
+  }
+
+  // Call sales model associate functions
+  if (Customer && typeof Customer.associate === 'function') {
+    Customer.associate(models);
+  }
+  if (SalesOrder && typeof SalesOrder.associate === 'function') {
+    SalesOrder.associate(models);
+  }
+  if (SalesOrderItem && typeof SalesOrderItem.associate === 'function') {
+    SalesOrderItem.associate(models);
   }
 };

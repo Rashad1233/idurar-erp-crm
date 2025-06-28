@@ -33,8 +33,20 @@ module.exports = (sequelize) => {
       allowNull: false,
     },
     status: {
-      type: DataTypes.ENUM('draft', 'active', 'expired', 'terminated'),
+      type: DataTypes.ENUM('draft', 'pending_approval', 'active', 'expired', 'terminated', 'rejected'),
       defaultValue: 'draft',
+    },
+    approvalStatus: {
+      type: DataTypes.ENUM('pending', 'approved', 'rejected'),
+      defaultValue: 'pending',
+    },
+    approvalDate: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    approvedById: {
+      type: DataTypes.UUID,
+      allowNull: true,
     },
     incoterms: {
       type: DataTypes.STRING, // DDP, FCA, CIP, EXW, etc.
@@ -58,21 +70,33 @@ module.exports = (sequelize) => {
     },
     notes: {
       type: DataTypes.TEXT,
-    },    createdById: {
+    },
+    supplierAcceptedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    supplierAcceptanceNotes: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    createdById: {
       type: DataTypes.UUID,
       allowNull: false,
     },
     updatedById: {
       type: DataTypes.UUID,
       allowNull: false,
-    },
+    },  }, {
+    tableName: 'Contracts',
+    timestamps: true
   });
+  
   Contract.associate = function(models) {
     Contract.belongsTo(models.Supplier, { as: 'supplier', foreignKey: 'supplierId' });
     Contract.belongsTo(models.User, { as: 'createdBy', foreignKey: 'createdById' });
     Contract.belongsTo(models.User, { as: 'updatedBy', foreignKey: 'updatedById' });
-    // TODO: Add these associations when ContractItem and PurchaseOrder models are available
-    // Contract.hasMany(models.ContractItem, { as: 'items' });
+    Contract.hasMany(models.ContractItem, { as: 'items', foreignKey: 'contractId' });
+    // TODO: Add this association when PurchaseOrder model is available
     // Contract.hasMany(models.PurchaseOrder, { as: 'purchaseOrders' });
   };
 

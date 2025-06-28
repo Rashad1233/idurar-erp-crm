@@ -7,7 +7,7 @@ import {
   InfoCircleOutlined, SearchOutlined, ShopOutlined, 
   InboxOutlined, EnvironmentOutlined 
 } from '@ant-design/icons';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import useLanguage from '@/locale/useLanguage';
 import apiClient from '@/api/axiosConfig';
 
@@ -18,6 +18,7 @@ const { Option } = Select;
 export default function ImprovedInventoryForm({ isUpdateForm = false, current = {} }) {
   const translate = useLanguage();
   const form = Form.useFormInstance();
+  const location = useLocation();
   
   // State management
   const [itemMasters, setItemMasters] = useState([]);
@@ -34,20 +35,32 @@ export default function ImprovedInventoryForm({ isUpdateForm = false, current = 
     loadStorageLocations();
   }, []);
 
-  // Load item masters
+  // Handle pre-selected item master from navigation state
+  useEffect(() => {
+    const preSelectedItem = location.state?.itemMaster;
+    if (preSelectedItem && form) {
+      // Set the item master in the form
+      form.setFieldValue('itemMasterId', preSelectedItem.id);
+      // Trigger the item master change handler
+      handleItemMasterChange(preSelectedItem.id);
+      
+      message.success(`Pre-selected item: ${preSelectedItem.itemNumber}`);
+    }
+  }, [location.state, form]);
+  // Load item masters - only approved items for inventory creation
   const loadItemMasters = async () => {
     setLoadingItemMasters(true);
     try {
-      const response = await apiClient.get('/item-master');
+      const response = await apiClient.get('/inventory-validation/approved-items');
       if (response.data && response.data.success) {
-        console.log('Loaded item masters:', response.data.data.length);
+        console.log('Loaded approved item masters:', response.data.data.length);
         setItemMasters(response.data.data || []);
       } else {
-        message.error('Failed to load item masters');
+        message.error('Failed to load approved item masters');
       }
     } catch (error) {
-      console.error('Error loading item masters:', error);
-      message.error('Error loading item masters');
+      console.error('Error loading approved item masters:', error);
+      message.error('Error loading approved item masters');
     } finally {
       setLoadingItemMasters(false);
     }
@@ -107,11 +120,11 @@ export default function ImprovedInventoryForm({ isUpdateForm = false, current = 
         } else {
           throw new Error('Failed to fetch item master details');
         }
-      }
-
-      setSelectedItemMaster(itemMaster);
-
-      // Auto-populate form fields from item master
+      }      setSelectedItemMaster(itemMaster);      // Determine stock type based on item master properties
+      const isPlannedStock = itemMaster.plannedStock === 'Y';
+      const isStockItem = itemMaster.stockItem === 'Y';
+      const stockType = isPlannedStock ? 'ST2' : 
+                       (isStockItem ? 'ST1' : 'NS3');      // Auto-populate form fields from item master
       const formUpdates = {
         shortDescription: itemMaster.shortDescription || '',
         longDescription: itemMaster.longDescription || '',
@@ -121,13 +134,25 @@ export default function ImprovedInventoryForm({ isUpdateForm = false, current = 
         unspscCode: itemMaster.unspscCode || '',
         criticality: itemMaster.criticality || 'MEDIUM',
         equipmentCategory: itemMaster.equipmentCategory || '',
-        equipmentSubCategory: itemMaster.equipmentSubCategory || '',
+        equipmentSubCategory: itemMaster.equipmentSubCategory || '',        // Logic for physical balance and condition:
+        // - ST2 (planned stock ONLY, not stock item): Lock to 0
+        // - NS3 (non-stock, not planned): Lock to 0  
+        // - ST1 (stock item, not planned): Allow input
+        // - Both planned AND stock: Allow input (special case)
+        physicalBalance: (isPlannedStock && !isStockItem) || (!isStockItem && !isPlannedStock) ? 0 : (form.getFieldValue('physicalBalance') || 0),
+        condition: (isPlannedStock && !isStockItem) || (!isStockItem && !isPlannedStock) ? 'N' : (form.getFieldValue('condition') || 'A'),
         // Set a default unit price if not already set
         unitPrice: form.getFieldValue('unitPrice') || 0.01
-      };
-
-      form.setFieldsValue(formUpdates);
-      message.success(`Item master "${itemMaster.itemNumber}" selected and data populated`);
+      };form.setFieldsValue(formUpdates);      // Show appropriate message based on stock type
+      if (isPlannedStock && isStockItem) {
+        message.success(`Both Planned Stock AND Stock Item "${itemMaster.itemNumber}" selected. You can set physical balance.`);
+      } else if (isPlannedStock && !isStockItem) {
+        message.info(`ST2 Planned Stock item "${itemMaster.itemNumber}" selected. Physical balance set to 0 and condition set to N (managed by planning system).`);
+      } else if (!isStockItem && !isPlannedStock) {
+        message.info(`NS3 Non-Stock item "${itemMaster.itemNumber}" selected. Physical balance set to 0 and condition set to N (used for contracts/direct orders only).`);
+      } else {
+        message.success(`ST1 Stock item "${itemMaster.itemNumber}" selected and data populated. You can set physical balance.`);
+      }
 
     } catch (error) {
       console.error('Error selecting item master:', error);
@@ -236,28 +261,48 @@ export default function ImprovedInventoryForm({ isUpdateForm = false, current = 
                 </Link>
               </Form.Item>
             </Col>
-          </Row>
-
-          {/* Display selected item master details */}
+          </Row>          {/* Display selected item master details */}
           {selectedItemMaster && (
             <Card size="small" style={{ backgroundColor: '#f6ffed', border: '1px solid #b7eb8f' }}>
               <Row gutter={16}>
-                <Col span={8}>
+                <Col span={6}>
                   <Text strong>Item Number:</Text> {selectedItemMaster.itemNumber}
                   <br />
                   <Text strong>Description:</Text> {selectedItemMaster.shortDescription}
                 </Col>
-                <Col span={8}>
+                <Col span={6}>
+                  <Text strong>Stock Type:</Text> {
+                    selectedItemMaster.plannedStock === 'Y' ? (
+                      <span style={{ color: '#1890ff', fontWeight: 'bold' }}>ST2 (Planned Stock)</span>
+                    ) : selectedItemMaster.stockItem === 'Y' ? (
+                      <span style={{ color: '#52c41a', fontWeight: 'bold' }}>ST1 (Stock Item)</span>
+                    ) : (
+                      <span style={{ color: '#faad14', fontWeight: 'bold' }}>NS3 (Non-Stock)</span>
+                    )
+                  }
+                  <br />
+                  <Text strong>UOM:</Text> {selectedItemMaster.uom || 'EA'}
+                </Col>
+                <Col span={6}>
                   <Text strong>Manufacturer:</Text> {selectedItemMaster.manufacturerName || 'N/A'}
                   <br />
                   <Text strong>Part Number:</Text> {selectedItemMaster.manufacturerPartNumber || 'N/A'}
                 </Col>
-                <Col span={8}>
+                <Col span={6}>
                   <Text strong>Category:</Text> {selectedItemMaster.equipmentCategory || 'N/A'}
                   <br />
-                  <Text strong>UOM:</Text> {selectedItemMaster.uom || 'EA'}
+                  <Text strong>Criticality:</Text> {selectedItemMaster.criticality || 'N/A'}
                 </Col>
               </Row>
+              {selectedItemMaster.plannedStock === 'Y' && (
+                <Alert
+                  message="ST2 Planned Stock Item"
+                  description="This item's inventory is managed by the planning system. Physical balance is automatically set to 0 and cannot be modified manually."
+                  type="info"
+                  showIcon
+                  style={{ marginTop: '12px' }}
+                />
+              )}
             </Card>
           )}
         </Card>
@@ -273,25 +318,44 @@ export default function ImprovedInventoryForm({ isUpdateForm = false, current = 
           size="small"
           style={{ marginBottom: '16px' }}
         >
-          <Row gutter={16}>
-            <Col span={8}>
+          <Row gutter={16}>            <Col span={8}>
               <Form.Item
                 label={
-                  <Tooltip title="Current physical quantity in stock">
-                    <Space>
+                  <Tooltip title={
+                    selectedItemMaster?.plannedStock === 'Y' 
+                      ? "Physical balance is managed by planning system for ST2 items"
+                      : "Current physical quantity in stock"
+                  }>                    <Space>
                       Physical Balance
                       <InfoCircleOutlined />
+                      {selectedItemMaster?.plannedStock === 'Y' && (
+                        <span style={{ color: '#1890ff', fontSize: '11px' }}>(ST2 - Planned Stock)</span>
+                      )}
+                      {selectedItemMaster?.stockItem === 'N' && selectedItemMaster?.plannedStock !== 'Y' && (
+                        <span style={{ color: '#ff6b35', fontSize: '11px' }}>(NS3 - Non-Stock)</span>
+                      )}
                     </Space>
                   </Tooltip>
                 }
                 name="physicalBalance"
                 rules={[{ required: true, message: 'Please enter physical balance' }]}
-              >
-                <InputNumber
-                  placeholder="Enter quantity"
+              >                <InputNumber
+                  placeholder={
+                    selectedItemMaster?.plannedStock === 'Y' && selectedItemMaster?.stockItem !== 'Y'
+                      ? "ST2: Managed by planning system (locked at 0)" 
+                      : (selectedItemMaster?.stockItem !== 'Y' && selectedItemMaster?.plannedStock !== 'Y')
+                      ? "NS3: Non-stock item (locked at 0)"
+                      : selectedItemMaster?.plannedStock === 'Y' && selectedItemMaster?.stockItem === 'Y'
+                      ? "Both Planned & Stock: Enter physical quantity"
+                      : "ST1: Enter physical quantity"
+                  }
                   style={{ width: '100%' }}
                   min={0}
                   precision={2}
+                  disabled={
+                    (selectedItemMaster?.plannedStock === 'Y' && selectedItemMaster?.stockItem !== 'Y') || 
+                    (selectedItemMaster?.stockItem !== 'Y' && selectedItemMaster?.plannedStock !== 'Y')
+                  }
                 />
               </Form.Item>
             </Col>
@@ -319,18 +383,28 @@ export default function ImprovedInventoryForm({ isUpdateForm = false, current = 
                   step={0.01}
                 />
               </Form.Item>
-            </Col>
-            <Col span={8}>
+            </Col>            <Col span={8}>
               <Form.Item
                 label="Condition"
                 name="condition"
                 initialValue="A"
-              >
-                <Select>
-                  <Option value="A">Active</Option>
-                  <Option value="I">Inactive</Option>
-                  <Option value="D">Damaged</Option>
-                  <Option value="O">Obsolete</Option>
+              >                <Select 
+                  disabled={selectedItemMaster && 
+                    ((selectedItemMaster.plannedStock === 'Y' && selectedItemMaster.stockItem !== 'Y') ||
+                     (selectedItemMaster.stockItem !== 'Y' && selectedItemMaster.plannedStock !== 'Y'))
+                  }
+                  placeholder={selectedItemMaster && 
+                    ((selectedItemMaster.plannedStock === 'Y' && selectedItemMaster.stockItem !== 'Y') ||
+                     (selectedItemMaster.stockItem !== 'Y' && selectedItemMaster.plannedStock !== 'Y'))
+                    ? "N - None (ST2/NS3 items)" 
+                    : "Select condition"
+                  }
+                >                  <Option value="A">A - Active</Option>
+                  <Option value="B">B - Good</Option>
+                  <Option value="C">C - Fair</Option>
+                  <Option value="D">D - Damaged</Option>
+                  <Option value="E">E - Obsolete</Option>
+                  <Option value="N">N - None (Planned/Non-stock)</Option>
                 </Select>
               </Form.Item>
             </Col>

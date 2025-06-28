@@ -13,20 +13,110 @@ db.Inventory = require('./Inventory')(sequelize, Sequelize.DataTypes);
 db.UserUnspscFavorite = require('./UserUnspscFavorite')(sequelize, Sequelize.DataTypes);
 db.UserUnspscHierarchy = require('./UserUnspscHierarchy')(sequelize, Sequelize.DataTypes);
 
-// Load procurement models
-db.PurchaseRequisition = require('./PurchaseRequisition')(sequelize, Sequelize.DataTypes);
-db.PurchaseRequisitionItem = require('./PurchaseRequisitionItem')(sequelize, Sequelize.DataTypes);
-db.RequestForQuotation = require('./RequestForQuotation')(sequelize, Sequelize.DataTypes);
-db.RfqItem = require('./RfqItem')(sequelize, Sequelize.DataTypes);
-db.RfqSupplier = require('./RfqSupplier')(sequelize, Sequelize.DataTypes);
-db.RfqQuoteItem = require('./RfqQuoteItem')(sequelize, Sequelize.DataTypes);
-db.Supplier = require('./Supplier')(sequelize, Sequelize.DataTypes);
-db.PurchaseOrder = require('./PurchaseOrder')(sequelize, Sequelize.DataTypes);
-db.PurchaseOrderItem = require('./PurchaseOrderItem')(sequelize, Sequelize.DataTypes);
-db.Contract = require('./Contract')(sequelize, Sequelize.DataTypes);
-db.ContractItem = require('./ContractItem')(sequelize, Sequelize.DataTypes);
-db.ApprovalHistory = require('./ApprovalHistory')(sequelize, Sequelize.DataTypes);
-db.DelegationOfAuthority = require('./DelegationOfAuthority')(sequelize, Sequelize.DataTypes);
+// Load procurement models with error handling
+console.log('🔍 Loading procurement models with error handling...');
+
+try {
+  db.PurchaseRequisition = require('./PurchaseRequisition')(sequelize, Sequelize.DataTypes);
+  console.log('✅ PurchaseRequisition loaded');
+} catch (err) { console.error('❌ PurchaseRequisition error:', err.message); }
+
+try {
+  db.PurchaseRequisitionItem = require('./PurchaseRequisitionItem')(sequelize, Sequelize.DataTypes);
+  console.log('✅ PurchaseRequisitionItem loaded');
+} catch (err) { console.error('❌ PurchaseRequisitionItem error:', err.message); }
+
+try {
+  db.RequestForQuotation = require('./RequestForQuotation')(sequelize, Sequelize.DataTypes);
+  console.log('✅ RequestForQuotation loaded');
+} catch (err) { console.error('❌ RequestForQuotation error:', err.message); console.error('❌ Stack:', err.stack); }
+
+try {
+  db.RfqItem = require('./RfqItem')(sequelize, Sequelize.DataTypes);
+  console.log('✅ RfqItem loaded');
+} catch (err) { console.error('❌ RfqItem error:', err.message); console.error('❌ Stack:', err.stack); }
+
+try {
+  db.RfqSupplier = require('./RfqSupplier')(sequelize, Sequelize.DataTypes);
+  console.log('✅ RfqSupplier loaded');
+} catch (err) { console.error('❌ RfqSupplier error:', err.message); console.error('❌ Stack:', err.stack); }
+
+try {
+  db.RfqQuoteItem = require('./RfqQuoteItem')(sequelize, Sequelize.DataTypes);
+  console.log('✅ RfqQuoteItem loaded');
+} catch (err) { console.error('❌ RfqQuoteItem error:', err.message); console.error('❌ Stack:', err.stack); }
+
+try {
+  db.Supplier = require('./Supplier')(sequelize, Sequelize.DataTypes);
+  console.log('✅ Supplier loaded');
+} catch (err) { console.error('❌ Supplier error:', err.message); }
+
+try {
+  db.PurchaseOrder = require('./PurchaseOrder')(sequelize, Sequelize.DataTypes);
+  console.log('✅ PurchaseOrder loaded');
+} catch (err) { console.error('❌ PurchaseOrder error:', err.message); console.error('❌ Stack:', err.stack); }
+
+try {
+  db.PurchaseOrderItem = require('./PurchaseOrderItem')(sequelize, Sequelize.DataTypes);
+  console.log('✅ PurchaseOrderItem loaded');
+} catch (err) { console.error('❌ PurchaseOrderItem error:', err.message); console.error('❌ Stack:', err.stack); }
+
+try {
+  db.Contract = require('./Contract')(sequelize, Sequelize.DataTypes);
+  console.log('✅ Contract loaded');
+} catch (err) { console.error('❌ Contract error:', err.message); }
+
+try {
+  db.ContractItem = require('./ContractItem')(sequelize, Sequelize.DataTypes);
+  console.log('✅ ContractItem loaded');
+} catch (err) { console.error('❌ ContractItem error:', err.message); }
+
+try {
+  db.ApprovalHistory = require('./ApprovalHistory')(sequelize, Sequelize.DataTypes);
+  console.log('✅ ApprovalHistory loaded');
+} catch (err) { console.error('❌ ApprovalHistory error:', err.message); }
+
+try {
+  db.DelegationOfAuthority = require('./DelegationOfAuthority')(sequelize, Sequelize.DataTypes);
+  console.log('✅ DelegationOfAuthority loaded');
+} catch (err) { console.error('❌ DelegationOfAuthority error:', err.message); }
+
+try {
+  db.Notification = require('./Notification')(sequelize, Sequelize.DataTypes);
+  console.log('✅ Notification loaded');
+} catch (err) { console.error('❌ Notification error:', err.message); }
+
+try {
+  db.ApprovalWorkflow = require('./ApprovalWorkflow')(sequelize, Sequelize.DataTypes);
+  console.log('✅ ApprovalWorkflow loaded');
+} catch (err) { console.error('❌ ApprovalWorkflow error:', err.message); }
+
+try {
+  db.ApprovalThreshold = require('./ApprovalThreshold')(sequelize, Sequelize.DataTypes);
+  console.log('✅ ApprovalThreshold loaded');
+} catch (err) { console.error('❌ ApprovalThreshold error:', err.message); }
+
+try {
+  db.NotificationLog = require('./NotificationLog')(sequelize, Sequelize.DataTypes);
+  console.log('✅ NotificationLog loaded');
+} catch (err) { console.error('❌ NotificationLog error:', err.message); }
+
+// Load sales models
+console.log('🔍 Loading sales models...');
+try {
+  db.Customer = require('./Customer')(sequelize, Sequelize.DataTypes);
+  console.log('✅ Customer loaded');
+} catch (err) { console.error('❌ Customer error:', err.message); }
+
+try {
+  db.SalesOrder = require('./SalesOrder')(sequelize, Sequelize.DataTypes);
+  console.log('✅ SalesOrder loaded');
+} catch (err) { console.error('❌ SalesOrder error:', err.message); }
+
+try {
+  db.SalesOrderItem = require('./SalesOrderItem')(sequelize, Sequelize.DataTypes);
+  console.log('✅ SalesOrderItem loaded');
+} catch (err) { console.error('❌ SalesOrderItem error:', err.message); }
 
 // Load models that return multiple models
 console.log('🔍 Loading warehouse models...');
@@ -79,6 +169,9 @@ const reorderRequestModels = require('./ReorderRequest')(sequelize, Sequelize.Da
 db.ReorderRequest = reorderRequestModels.ReorderRequest;
 db.ReorderRequestItem = reorderRequestModels.ReorderRequestItem;
 
+// Debug: Show what models are loaded before associations
+console.log('🔍 Models loaded before associations:', Object.keys(db).filter(key => !['sequelize', 'Sequelize'].includes(key)));
+
 // Initialize associations
 console.log('🔍 Initializing model associations...');
 try {
@@ -89,8 +182,19 @@ try {
   console.error('❌ Error stack:', error.stack);
 }
 
+// Debug: Show what models are available after associations
+console.log('🔍 Models available after associations:', Object.keys(db).filter(key => !['sequelize', 'Sequelize'].includes(key)));
+
 // Include sequelize instance and class in exports
 db.sequelize = sequelize;
 db.Sequelize = Sequelize;
+
+// Include legacy models for backward compatibility
+try {
+  const RejectionNotification = require('../rejectionNotification');
+  db.RejectionNotification = RejectionNotification(sequelize);
+} catch (err) {
+  console.warn('Could not load legacy RejectionNotification model:', err.message);
+}
 
 module.exports = db;

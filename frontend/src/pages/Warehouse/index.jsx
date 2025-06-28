@@ -1,6 +1,6 @@
-import React from 'react';
-import { Tabs, Button, Row, Col, Card, Typography } from 'antd';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Tabs, Button, Row, Col, Card, Typography, message } from 'antd';
+import { Link, useLocation } from 'react-router-dom';
 import { 
   PlusOutlined, 
   HomeOutlined, 
@@ -12,6 +12,31 @@ import SimpleCrudModule from '@/modules/SimpleCrudModule';
 const { Title } = Typography;
 
 function Warehouse() {
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState('locations');
+  
+  // Handle navigation state for tab switching and success messages
+  useEffect(() => {
+    if (location.state) {
+      const { activeTab: targetTab, message: successMessage } = location.state;
+      
+      // Set the active tab if specified
+      if (targetTab === 'storageLocations') {
+        setActiveTab('locations');
+      } else if (targetTab === 'bins') {
+        setActiveTab('bins');
+      }
+      
+      // Show success message if provided
+      if (successMessage) {
+        message.success(successMessage);
+      }
+      
+      // Clear the state to prevent re-showing the message on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+  
   const entity = 'warehouse';
     const searchConfig = {
     displayLabels: ['code', 'description'],
@@ -104,9 +129,9 @@ function Warehouse() {
       </Row>
           </Card>
         </Col>
-      </Row>
-        <Tabs 
-          defaultActiveKey="locations" 
+      </Row>        <Tabs 
+          activeKey={activeTab}
+          onChange={setActiveTab}
           style={{ marginTop: '20px' }}
           items={[
             {

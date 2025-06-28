@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 
-import { Button, Input, Menu, Tag, message } from 'antd';
+import { Button, Input, Menu, Tag, App } from 'antd';
 import { PlusOutlined, EyeOutlined, EditOutlined, CheckOutlined, SearchOutlined, InfoCircleOutlined, ArrowRightOutlined, MinusOutlined } from '@ant-design/icons';
 
 // Import our custom procurement table styles
@@ -25,7 +25,11 @@ import RenderTracker from '@/components/debug/RenderTracker';
 import useApiData from '@/hooks/useApiData';
 import useApiSearch from '@/hooks/useApiSearch';
 
-function PurchaseRequisition() {  
+// System Admin ID
+const SYSTEM_ADMIN_ID = "0b4afa3e-8582-452b-833c-f8bf695c4d60";
+
+function PurchaseRequisition() {
+  const { message } = App.useApp();
   const [refreshTrigger, setRefreshTrigger] = useState(false);
   const [showScrollIndicator, setShowScrollIndicator] = useState(false);
   const tableContainerRef = useRef(null);
@@ -68,8 +72,7 @@ function PurchaseRequisition() {
   }, [InfoIcon]);
 
   // Set up DOM event handlers for the ultra-static tooltip completely outside React's lifecycle
-  
-  // Handle workflow actions
+    // Handle workflow actions
   const handleSubmitPR = async (prId) => {
     try {
       const response = await fetch(`/api/procurement/purchase-requisition/${prId}/submit`, {
@@ -90,61 +93,6 @@ function PurchaseRequisition() {
     } catch (error) {
       console.error('Error submitting PR:', error);
       message.error(translate('Failed to submit Purchase Requisition'));
-    }
-  };
-
-  const handleApprovePR = async (prId) => {
-    try {
-      const response = await fetch(`/api/procurement/purchase-requisition/${prId}/approve`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify({
-          action: 'approve',
-          comments: ''
-        }),
-      });
-
-      if (response.ok) {
-        message.success(translate('Purchase Requisition approved successfully'));
-        setRefreshTrigger(prev => !prev); // Refresh the list
-      } else {
-        const errorData = await response.json();
-        message.error(errorData.message || translate('Failed to approve Purchase Requisition'));
-      }
-    } catch (error) {
-      console.error('Error approving PR:', error);
-      message.error(translate('Failed to approve Purchase Requisition'));
-    }
-  };
-
-  const handleRejectPR = async (prId) => {
-    // For now, reject without asking for reason - can be enhanced later
-    try {
-      const response = await fetch(`/api/procurement/purchase-requisition/${prId}/approve`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify({
-          action: 'reject',
-          comments: 'Rejected by user'
-        }),
-      });
-
-      if (response.ok) {
-        message.success(translate('Purchase Requisition rejected'));
-        setRefreshTrigger(prev => !prev); // Refresh the list
-      } else {
-        const errorData = await response.json();
-        message.error(errorData.message || translate('Failed to reject Purchase Requisition'));
-      }
-    } catch (error) {
-      console.error('Error rejecting PR:', error);
-      message.error(translate('Failed to reject Purchase Requisition'));
     }
   };
   // Use setTimeout to ensure this runs after the component is mounted
@@ -314,13 +262,24 @@ function PurchaseRequisition() {
       render: (text, record) => (
         <Link to={`/purchase-requisition/read/${record.id || record._id}`}>{text}</Link>
       ),
-    },
-    {
+    },    {
       title: translate('Description'),
       dataIndex: 'description',
       key: 'description',
       width: 200,
-    },    {
+      render: (text) => (
+        <div style={{ 
+          wordWrap: 'break-word', 
+          wordBreak: 'break-word',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          maxWidth: '180px'
+        }}>
+          {text || '-'}
+        </div>
+      ),
+    },{
       title: translate('Status'),
       dataIndex: 'status',
       key: 'status',
@@ -375,30 +334,96 @@ function PurchaseRequisition() {
       width: 120,
     },    {
       title: translate('Requestor'),
-      dataIndex: 'requestorName', // Use the flat field from backend
+      dataIndex: 'requestor',
       key: 'requestor',
-      width: 150,
-      render: (text, record) => text || record.requestorName || 'Unknown',
-    },
-    {
+      width: 150,      render: (text, record) => {
+        // Check if it's the system admin ID
+        if (record.requestorId === SYSTEM_ADMIN_ID || 
+            (record.requestor && record.requestor.id === SYSTEM_ADMIN_ID)) {
+          return 'System Administrator';
+        }
+        
+        // Handle both object and string/id formats
+        if (record.requestor && typeof record.requestor === 'object') {
+          return record.requestor.name || `User-${record.requestorId?.substr(0, 4)}`;
+        } else if (record.requestorName) {
+          return record.requestorName;
+        } else if (record.requestorId) {
+          return `User-${record.requestorId.substr(0, 4)}`;
+        } else if (record.createdBy) {
+          if (typeof record.createdBy === 'object') {
+            if (record.createdBy.id === SYSTEM_ADMIN_ID) {
+              return 'System Administrator';
+            }
+            return record.createdBy.name || `User-${record.createdById?.substr(0, 4)}`;
+          } else if (record.createdBy === SYSTEM_ADMIN_ID) {
+            return 'System Administrator';
+          }
+          return record.createdBy;
+        }
+        return 'System Administrator';
+      },
+    },{
       title: translate('Approver'),
-      dataIndex: 'approverName', // Use the flat field from backend
+      dataIndex: 'approver', 
       key: 'approver',
-      width: 150,
-      render: (text, record) => text || record.approverName || 'Not Assigned',
+      width: 150,      render: (text, record) => {
+        // Check if it's the system admin ID
+        if (record.approverId === SYSTEM_ADMIN_ID || 
+            (record.approver && record.approver.id === SYSTEM_ADMIN_ID)) {
+          return 'System Administrator';
+        }
+        
+        // Handle both object and string/id formats
+        if (record.approver && typeof record.approver === 'object') {
+          return record.approver.name || `User-${record.approverId?.substr(0, 4)}`;
+        } else if (record.approverName) {
+          return record.approverName;
+        } else if (record.approverId) {
+          return `User-${record.approverId.substr(0, 4)}`;
+        }
+        return 'Not Assigned';
+      },
     },
     {
       title: translate('Current Approver'),
-      dataIndex: 'currentApprover', // This field might not exist yet
+      dataIndex: 'currentApprover',
       key: 'currentApprover',
-      width: 150,
-      render: (text, record) => record.currentApproverName || 'Not Assigned',
+      width: 150,      render: (text, record) => {
+        // Check if it's the system admin ID
+        if (record.currentApproverId === SYSTEM_ADMIN_ID || 
+            (record.currentApprover && record.currentApprover.id === SYSTEM_ADMIN_ID)) {
+          return 'System Administrator';
+        }
+        
+        // Handle both object and string/id formats
+        if (record.currentApprover && typeof record.currentApprover === 'object') {
+          return record.currentApprover.name || `User-${record.currentApproverId?.substr(0, 4)}`;
+        } else if (record.currentApproverName) {
+          return record.currentApproverName;
+        } else if (record.currentApproverId) {
+          return `User-${record.currentApproverId.substr(0, 4)}`;
+        }
+        return 'Not Assigned';
+      },
     },{
       title: translate('Notes'),
       dataIndex: 'notes',
       key: 'notes',
       width: 150,
-      render: (text) => text || translate('No notes'),    },
+      render: (text) => (
+        <div style={{ 
+          wordWrap: 'break-word', 
+          wordBreak: 'break-word',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          maxWidth: '130px'
+        }}>
+          {text || translate('No notes')}
+        </div>
+      ),
+    },
     {
       title: translate('Attachments'),
       dataIndex: 'attachments',
@@ -480,11 +505,9 @@ function PurchaseRequisition() {
       key: 'actions',
       fixed: 'right',
       width: 200,
-      render: (_, record) => {
-        const canSubmit = record.status === 'draft' && 
+      render: (_, record) => {        const canSubmit = record.status === 'draft' && 
           (record.requestorId === currentUser?.id || currentUser?.role === 'admin');
-        const canApprove = record.status === 'submitted' && 
-          (record.currentApproverId === currentUser?.id || currentUser?.role === 'admin');
+        const canApprove = record.status === 'submitted' || record.status === 'pending_approval';
         const canView = true;
 
         return (
@@ -511,30 +534,17 @@ function PurchaseRequisition() {
               >
                 {translate('Submit')}
               </Button>
-            )}
-            {canApprove && (
-              <Button 
-                type="primary" 
-                size="small" 
-                icon={<CheckOutlined />}
-                title={translate('Approve')}
-                onClick={() => handleApprovePR(record.id)}
-                style={{ backgroundColor: '#52c41a' }}
-              >
-                {translate('Approve')}
-              </Button>
-            )}
-            {canApprove && (
-              <Button 
-                type="primary" 
-                size="small" 
-                icon={<MinusOutlined />}
-                title={translate('Reject')}
-                onClick={() => handleRejectPR(record.id)}
-                danger
-              >
-                {translate('Reject')}
-              </Button>
+            )}            {canApprove && (
+              <Link to={`/purchase-requisition/approval`}>
+                <Button 
+                  type="primary" 
+                  size="small" 
+                  icon={<ArrowRightOutlined />}
+                  title={translate('Go to Review')}
+                >
+                  {translate('Review')}
+                </Button>
+              </Link>
             )}
           </div>
         );
@@ -568,31 +578,32 @@ function PurchaseRequisition() {
 
   // Pre-process columns to prevent tooltip behaviors entirely
   const safeColumns = React.useMemo(() => {
-    return columns.map(col => ({
-      ...col,
-      // Disable ellipsis everywhere to prevent tooltips
-      ellipsis: false,
-      // Remove any tooltip props that might exist
-      tooltip: undefined,
-      showSorterTooltip: false,
-      // Make sure all titles are simple strings
-      title: typeof col.title === 'string' ? col.title : 
-             typeof col.title === 'function' ? col.title() : 
-             String(col.title),
-      // Ensure render functions don't trigger tooltips
-      render: col.render ? (text, record, index) => {
-        const rendered = col.render(text, record, index);
-        // If the rendered result is a React element, make sure it doesn't have tooltip props
-        if (React.isValidElement(rendered)) {
-          return React.cloneElement(rendered, {
-            title: undefined, 
-            tooltip: undefined,
-            ellipsis: false
-          });
-        }
-        return rendered;
-      } : undefined
-    }));
+    return columns.map(col => {
+      const { ellipsis, tooltip, ...restCol } = col;
+      return {
+        ...restCol,
+        // Remove any tooltip props that might exist
+        showSorterTooltip: false,
+        // Make sure all titles are simple strings
+        title: typeof col.title === 'string' ? col.title : 
+               typeof col.title === 'function' ? col.title() : 
+               String(col.title),
+        // Ensure render functions don't trigger tooltips
+        render: col.render ? (text, record, index) => {
+          const rendered = col.render(text, record, index);
+          // If the rendered result is a React element, make sure it doesn't have tooltip props
+          if (React.isValidElement(rendered)) {
+            const { ellipsis, ...safeProps } = rendered.props || {};
+            return React.cloneElement(rendered, {
+              ...safeProps,
+              title: undefined, 
+              tooltip: undefined
+            });
+          }
+          return rendered;
+        } : undefined
+      };
+    });
   }, [columns]);
   
   return (
@@ -612,7 +623,8 @@ function PurchaseRequisition() {
         <div className="action-panel">
           <div className="title-action-panel">
             <h3>{translate('Purchase Requisitions')}</h3>
-          </div>        <div className="action-buttons">
+          </div>
+         <div className="action-buttons">
             <Button
               type="primary"
               icon={<PlusOutlined />}
@@ -689,11 +701,18 @@ function PurchaseRequisition() {
             scroll={{ x: 2500 }} // Enable horizontal scrolling with larger fixed width
             size="small" // Make the table more compact for many columns
             bordered // Add borders for better column visibility
-            expandable={{
-              expandedRowRender: (record) => (
+            expandable={{              expandedRowRender: (record) => (
                 <div style={{ margin: 0 }}>
                   <h4>{translate('Notes')}</h4>
-                  <p>{record.notes || translate('No notes')}</p>
+                  <div style={{ 
+                    wordWrap: 'break-word', 
+                    wordBreak: 'break-word',
+                    whiteSpace: 'pre-wrap',
+                    lineHeight: '1.5',
+                    padding: '8px 0'
+                  }}>
+                    {record.notes || translate('No notes')}
+                  </div>
                   
                   {record.items && record.items.length > 0 && (
                     <div>
@@ -726,4 +745,13 @@ function PurchaseRequisition() {
   );
 }
 
-export default PurchaseRequisition;
+// Wrapper component to provide App context
+function PurchaseRequisitionWrapper() {
+  return (
+    <App>
+      <PurchaseRequisition />
+    </App>
+  );
+}
+
+export default PurchaseRequisitionWrapper;

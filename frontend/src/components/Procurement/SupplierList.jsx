@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   Button, 
   Table, 
@@ -14,7 +14,10 @@ import {
   Menu,
   Modal,
   Form,
-  Popconfirm
+  Popconfirm,
+  Row,
+  Col,
+  Typography
 } from 'antd';
 import {
   PlusOutlined,
@@ -23,16 +26,20 @@ import {
   EditOutlined,
   EyeOutlined,
   DeleteOutlined,
-  SearchOutlined
+  SearchOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined
 } from '@ant-design/icons';
 
 import useLanguage from '@/locale/useLanguage';
 import procurementService from '@/services/procurementService';
 
 const { Search } = Input;
+const { Text } = Typography;
 
 function SupplierList() {
   const translate = useLanguage();
+  const navigate = useNavigate();
   
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -87,13 +94,41 @@ function SupplierList() {
   const getStatusTag = (status) => {
     switch (status) {
       case 'active':
-        return <Tag color="green">Active</Tag>;
+        return <Tag color="green" icon={<CheckCircleOutlined />}>Active</Tag>;
       case 'inactive':
         return <Tag color="orange">Inactive</Tag>;
       case 'pending_approval':
-        return <Tag color="blue">Pending Approval</Tag>;
+        return <Tag 
+          color="gold" 
+          icon={<div style={{ 
+            width: '8px', 
+            height: '8px', 
+            borderRadius: '50%', 
+            backgroundColor: '#faad14', 
+            display: 'inline-block', 
+            marginRight: '4px',
+            animation: 'pulse 2s infinite'
+          }} />}
+        >
+          Pending Approval
+        </Tag>;
+      case 'pending_supplier_acceptance':
+        return <Tag 
+          color="blue" 
+          icon={<div style={{ 
+            width: '8px', 
+            height: '8px', 
+            borderRadius: '50%', 
+            backgroundColor: '#1890ff', 
+            display: 'inline-block', 
+            marginRight: '4px',
+            animation: 'pulse 2s infinite'
+          }} />}
+        >
+          Pending Supplier Acceptance
+        </Tag>;
       case 'rejected':
-        return <Tag color="red">Rejected</Tag>;
+        return <Tag color="red" icon={<CloseCircleOutlined />}>Rejected</Tag>;
       default:
         return <Tag>Unknown</Tag>;
     }
@@ -271,6 +306,31 @@ function SupplierList() {
           </Space>
         }
       >
+        {/* Pending Approval Alert */}
+        {suppliers.filter(s => s.status === 'pending_approval').length > 0 && (
+          <Alert
+            message={`${suppliers.filter(s => s.status === 'pending_approval').length} supplier${suppliers.filter(s => s.status === 'pending_approval').length > 1 ? 's' : ''} pending approval`}
+            description="Review and approve pending suppliers to make them active in the system."
+            type="warning"
+            showIcon
+            style={{ marginBottom: 16 }}
+            action={
+              <Button 
+                size="small" 
+                type="primary"
+                onClick={() => {
+                  const pendingSuppliers = suppliers.filter(s => s.status === 'pending_approval');
+                  if (pendingSuppliers.length > 0) {
+                    navigate(`/supplier/read/${pendingSuppliers[0].id}`);
+                  }
+                }}
+              >
+                Review First
+              </Button>
+            }
+          />
+        )}
+        
         {error && (
           <Alert 
             message={translate('Error')} 
@@ -296,89 +356,214 @@ function SupplierList() {
       {selectedSupplier && (
         <Modal
           title={translate('Supplier Details')}
-          visible={isViewModalVisible}
+          open={isViewModalVisible}
           onCancel={handleViewModalClose}
           footer={[
+            <Button key="view-full" type="primary" onClick={() => {
+              handleViewModalClose();
+              navigate(`/supplier/read/${selectedSupplier.id}`);
+            }}>
+              {translate('View Full Details')}
+            </Button>,
             <Button key="close" onClick={handleViewModalClose}>
               {translate('Close')}
             </Button>
           ]}
-          width={700}
+          width={800}
         >
-          <div style={{ marginBottom: 16 }}>
-            <h3>{selectedSupplier.legalName}</h3>
+          <div style={{ marginBottom: '20px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <Text strong style={{ fontSize: '18px' }}>{selectedSupplier.legalName}</Text>
             {getSupplierTypeTag(selectedSupplier.supplierType)}
             {getStatusTag(selectedSupplier.status)}
           </div>
           
-          <table className="detail-table">
-            <tbody>
-              <tr>
-                <td><strong>{translate('Supplier Number')}:</strong></td>
-                <td>{selectedSupplier.supplierNumber || '-'}</td>
-              </tr>
-              <tr>
-                <td><strong>{translate('Trade Name')}:</strong></td>
-                <td>{selectedSupplier.tradeName || '-'}</td>
-              </tr>
-              <tr>
-                <td><strong>{translate('Contact Email')}:</strong></td>
-                <td>{selectedSupplier.contactEmail || '-'}</td>
-              </tr>
-              <tr>
-                <td><strong>{translate('Secondary Email')}:</strong></td>
-                <td>{selectedSupplier.contactEmailSecondary || '-'}</td>
-              </tr>
-              <tr>
-                <td><strong>{translate('Contact Phone')}:</strong></td>
-                <td>{selectedSupplier.contactPhone || '-'}</td>
-              </tr>
-              <tr>
-                <td><strong>{translate('Contact Name')}:</strong></td>
-                <td>{selectedSupplier.contactName || '-'}</td>
-              </tr>
-              <tr>
-                <td><strong>{translate('Address')}:</strong></td>
-                <td>{selectedSupplier.address || '-'}</td>
-              </tr>
-              <tr>
-                <td><strong>{translate('City')}:</strong></td>
-                <td>{selectedSupplier.city || '-'}</td>
-              </tr>
-              <tr>
-                <td><strong>{translate('State/Province')}:</strong></td>
-                <td>{selectedSupplier.state || '-'}</td>
-              </tr>
-              <tr>
-                <td><strong>{translate('Country')}:</strong></td>
-                <td>{selectedSupplier.country || '-'}</td>
-              </tr>
-              <tr>
-                <td><strong>{translate('Postal Code')}:</strong></td>
-                <td>{selectedSupplier.postalCode || '-'}</td>
-              </tr>
-              <tr>
-                <td><strong>{translate('Payment Terms')}:</strong></td>
-                <td>{selectedSupplier.paymentTerms || '-'}</td>
-              </tr>
-              <tr>
-                <td><strong>{translate('Tax ID')}:</strong></td>
-                <td>{selectedSupplier.taxId || '-'}</td>
-              </tr>
-              <tr>
-                <td><strong>{translate('Registration Number')}:</strong></td>
-                <td>{selectedSupplier.registrationNumber || '-'}</td>
-              </tr>
-              <tr>
-                <td><strong>{translate('Compliance Checked')}:</strong></td>
-                <td>{selectedSupplier.complianceChecked ? translate('Yes') : translate('No')}</td>
-              </tr>
-              <tr>
-                <td><strong>{translate('Notes')}:</strong></td>
-                <td>{selectedSupplier.notes || '-'}</td>
-              </tr>
-            </tbody>
-          </table>
+          <Row gutter={[24, 16]}>
+            {/* Left Column */}
+            <Col span={12}>
+              <div style={{ 
+                background: '#f8f9fa', 
+                padding: '16px', 
+                borderRadius: '8px',
+                border: '1px solid #e9ecef',
+                marginBottom: '12px'
+              }}>
+                <h4 style={{ 
+                  margin: '0 0 12px 0', 
+                  color: '#1890ff',
+                  fontSize: '14px',
+                  fontWeight: '600'
+                }}>
+                  {translate('Basic Information')}
+                </h4>
+                <div style={{ display: 'grid', gap: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#666', fontSize: '12px' }}>{translate('Supplier Number')}:</span>
+                    <Text code style={{ fontSize: '12px' }}>{selectedSupplier.supplierNumber}</Text>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#666', fontSize: '12px' }}>{translate('Trade Name')}:</span>
+                    <span style={{ fontWeight: '500', fontSize: '13px' }}>{selectedSupplier.tradeName || '-'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#666', fontSize: '12px' }}>{translate('Payment Terms')}:</span>
+                    <span style={{ fontWeight: '500', fontSize: '13px' }}>{selectedSupplier.paymentTerms || '-'}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ 
+                background: '#f8f9fa', 
+                padding: '16px', 
+                borderRadius: '8px',
+                border: '1px solid #e9ecef'
+              }}>
+                <h4 style={{ 
+                  margin: '0 0 12px 0', 
+                  color: '#52c41a',
+                  fontSize: '14px',
+                  fontWeight: '600'
+                }}>
+                  {translate('Contact Information')}
+                </h4>
+                <div style={{ display: 'grid', gap: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#666', fontSize: '12px' }}>{translate('Contact Name')}:</span>
+                    <span style={{ fontWeight: '500', fontSize: '13px' }}>{selectedSupplier.contactName || '-'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#666', fontSize: '12px' }}>{translate('Phone')}:</span>
+                    <span style={{ fontWeight: '500', fontSize: '13px' }}>
+                      {selectedSupplier.contactPhone ? (
+                        <a href={`tel:${selectedSupplier.contactPhone}`}>{selectedSupplier.contactPhone}</a>
+                      ) : '-'}
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: '#666', fontSize: '12px', display: 'block' }}>{translate('Primary Email')}:</span>
+                    <span style={{ fontWeight: '500', fontSize: '13px' }}>
+                      {selectedSupplier.contactEmail ? (
+                        <a href={`mailto:${selectedSupplier.contactEmail}`}>{selectedSupplier.contactEmail}</a>
+                      ) : '-'}
+                    </span>
+                  </div>
+                  {selectedSupplier.contactEmailSecondary && (
+                    <div>
+                      <span style={{ color: '#666', fontSize: '12px', display: 'block' }}>{translate('Secondary Email')}:</span>
+                      <a href={`mailto:${selectedSupplier.contactEmailSecondary}`} style={{ fontSize: '13px' }}>
+                        {selectedSupplier.contactEmailSecondary}
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Col>
+
+            {/* Right Column */}
+            <Col span={12}>
+              <div style={{ 
+                background: '#f8f9fa', 
+                padding: '16px', 
+                borderRadius: '8px',
+                border: '1px solid #e9ecef',
+                marginBottom: '12px'
+              }}>
+                <h4 style={{ 
+                  margin: '0 0 12px 0', 
+                  color: '#fa8c16',
+                  fontSize: '14px',
+                  fontWeight: '600'
+                }}>
+                  {translate('Address Information')}
+                </h4>
+                <div style={{ display: 'grid', gap: '8px' }}>
+                  {selectedSupplier.address && (
+                    <div>
+                      <span style={{ color: '#666', fontSize: '12px', display: 'block' }}>{translate('Address')}:</span>
+                      <span style={{ fontWeight: '500', fontSize: '13px' }}>{selectedSupplier.address}</span>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#666', fontSize: '12px' }}>{translate('City')}:</span>
+                    <span style={{ fontWeight: '500', fontSize: '13px' }}>{selectedSupplier.city || '-'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#666', fontSize: '12px' }}>{translate('State/Province')}:</span>
+                    <span style={{ fontWeight: '500', fontSize: '13px' }}>{selectedSupplier.state || '-'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#666', fontSize: '12px' }}>{translate('Country')}:</span>
+                    <span style={{ fontWeight: '500', fontSize: '13px' }}>{selectedSupplier.country || '-'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#666', fontSize: '12px' }}>{translate('Postal Code')}:</span>
+                    <span style={{ fontWeight: '500', fontSize: '13px' }}>{selectedSupplier.postalCode || '-'}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ 
+                background: '#f8f9fa', 
+                padding: '16px', 
+                borderRadius: '8px',
+                border: '1px solid #e9ecef'
+              }}>
+                <h4 style={{ 
+                  margin: '0 0 12px 0', 
+                  color: '#722ed1',
+                  fontSize: '14px',
+                  fontWeight: '600'
+                }}>
+                  {translate('Legal & Compliance')}
+                </h4>
+                <div style={{ display: 'grid', gap: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#666', fontSize: '12px' }}>{translate('Tax ID')}:</span>
+                    <span style={{ fontWeight: '500', fontSize: '13px' }}>{selectedSupplier.taxId || '-'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#666', fontSize: '12px' }}>{translate('Registration Number')}:</span>
+                    <span style={{ fontWeight: '500', fontSize: '13px' }}>{selectedSupplier.registrationNumber || '-'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#666', fontSize: '12px' }}>{translate('Compliance Checked')}:</span>
+                    <span>
+                      {selectedSupplier.complianceChecked ? (
+                        <Tag color="green" size="small">
+                          {translate('Yes')}
+                        </Tag>
+                      ) : (
+                        <Tag color="orange" size="small">
+                          {translate('No')}
+                        </Tag>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </Col>
+          </Row>
+
+          {selectedSupplier.notes && (
+            <div style={{ 
+              marginTop: '16px',
+              background: '#f6ffed', 
+              padding: '12px', 
+              borderRadius: '6px',
+              border: '1px solid #b7eb8f'
+            }}>
+              <h4 style={{ 
+                margin: '0 0 8px 0', 
+                color: '#389e0d',
+                fontSize: '14px',
+                fontWeight: '600'
+              }}>
+                {translate('Notes')}
+              </h4>
+              <div style={{ fontSize: '13px', lineHeight: '1.5' }}>
+                {selectedSupplier.notes}
+              </div>
+            </div>
+          )}
         </Modal>
       )}
       
@@ -386,7 +571,7 @@ function SupplierList() {
       {selectedSupplier && (
         <Modal
           title={translate('Delete Supplier')}
-          visible={isDeleteModalVisible}
+          open={isDeleteModalVisible}
           onCancel={handleDeleteModalClose}
           footer={[
             <Button key="cancel" onClick={handleDeleteModalClose}>

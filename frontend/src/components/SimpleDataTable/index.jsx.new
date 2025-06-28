@@ -28,15 +28,16 @@ const SimpleDataTable = ({
   
   // Process columns to ensure all tooltip-related props are removed
   const processedColumns = React.useMemo(() => {
-    return columns.map(column => ({
-      ...column,
-      ellipsis: false,
-      tooltip: undefined,
-      showSorterTooltip: false,
-      title: typeof column.title === 'string' ? column.title : 
-             typeof column.title === 'function' ? column.title() : 
-             String(column.title)
-    }));
+    return columns.map(column => {
+      const { ellipsis, tooltip, ...restColumn } = column;
+      return {
+        ...restColumn,
+        showSorterTooltip: false,
+        title: typeof column.title === 'string' ? column.title : 
+               typeof column.title === 'function' ? column.title() : 
+               String(column.title)
+      };
+    });
   }, [columns]);
   
   // Create custom rendering components to prevent tooltip behavior

@@ -144,6 +144,12 @@ export default function ItemMasterRead() {
               ) : '-'}
             </Descriptions.Item>
             <Descriptions.Item label="Unit of Measure">{item.uom || '-'}</Descriptions.Item>
+            <Descriptions.Item label="Quantity per kg">
+              {item.quantityPerKg ? `${parseFloat(item.quantityPerKg).toFixed(4)} units/kg` : '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Quantity per m³">
+              {item.quantityPerCubicMeter ? `${parseFloat(item.quantityPerCubicMeter).toFixed(4)} units/m³` : '-'}
+            </Descriptions.Item>
             <Descriptions.Item label="Manufacturer Name">{item.manufacturerName || '-'}</Descriptions.Item>
             <Descriptions.Item label="Manufacturer Part Number">{item.manufacturerPartNumber || '-'}</Descriptions.Item>
             <Descriptions.Item label="Stock Item">{renderYesNo(item.stockItem)}</Descriptions.Item>

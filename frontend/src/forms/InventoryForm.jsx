@@ -14,8 +14,8 @@ const { Title } = Typography;
 const { TextArea } = Input;
 
 export default function InventoryForm({ isUpdateForm = false, current = {}, form }) {
-  const translate = useLanguage();
-  const [itemMasters, setItemMasters] = useState([]);
+  const translate = useLanguage();  const [itemMasters, setItemMasters] = useState([]);
+  const [selectedItemMaster, setSelectedItemMaster] = useState(null);
   const [loading, setLoading] = useState(false);
   const [storageLocations, setStorageLocations] = useState([]);
   const [binLocations, setBinLocations] = useState([]);
@@ -57,14 +57,13 @@ export default function InventoryForm({ isUpdateForm = false, current = {}, form
         } else {
           console.error('Storage locations API error:', storageLocationsResponse);
           setStorageLocations([]);
-        }
-
-        // Fetch item masters
-        const itemMastersResponse = await inventoryService.getItemMasters();
+        }        // Fetch only approved item masters for inventory
+        const itemMastersResponse = await inventoryService.getApprovedItemsForInventory();
         if (itemMastersResponse.success) {
           setItemMasters(itemMastersResponse.data);
+          console.log(`✅ Loaded ${itemMastersResponse.data.length} approved items for inventory`);
         } else {
-          console.error('Failed to load item masters:', itemMastersResponse);
+          console.error('Failed to load approved item masters:', itemMastersResponse);
         }
       } catch (error) {
         console.error('Error fetching form data:', error);
@@ -152,7 +151,11 @@ export default function InventoryForm({ isUpdateForm = false, current = {}, form
         console.error("Form instance is not available!");
         message.error("Cannot update form: form instance not available");
         return;
-      }
+      }      // Determine stock type based on item master properties
+      const isPlannedStock = itemMaster.plannedStock === 'Y';
+      const isStockItem = itemMaster.stockItem === 'Y';
+      const stockType = isPlannedStock ? 'ST2' : 
+                       (isStockItem ? 'ST1' : 'NS3');
 
       const currentUnitPrice = form.getFieldValue('unitPrice');
       const unspscCodeValue = itemMaster.unspscCode || 
@@ -164,9 +167,7 @@ export default function InventoryForm({ isUpdateForm = false, current = {}, form
         if (typeof itemMaster.defaultStorageLocation === 'object') {
           defaultLocationId = itemMaster.defaultStorageLocation.id;
         }
-      }
-
-      form.setFieldsValue({
+      }      form.setFieldsValue({
         shortDescription: itemMaster.shortDescription || 'No description available',
         longDescription: itemMaster.longDescription || '',
         criticality: itemMaster.criticality || 'MEDIUM',
@@ -175,18 +176,35 @@ export default function InventoryForm({ isUpdateForm = false, current = {}, form
         manufacturerPartNumber: itemMaster.manufacturerPartNumber || 'Not specified',
         uom: itemMaster.uom || 'EA',
         unitPrice: currentUnitPrice || 0.01,
-        storageLocationId: defaultLocationId,
-      });      // If we have a default storage location, fetch its bin locations
+        storageLocationId: defaultLocationId,        // Logic for physical balance and condition:
+        // - ST2 (planned stock ONLY, not stock item): Lock to 0
+        // - NS3 (non-stock, not planned): Lock to 0  
+        // - ST1 (stock item, not planned): Allow input
+        // - Both planned AND stock: Allow input (special case)
+        physicalBalance: (isPlannedStock && !isStockItem) || (!isStockItem && !isPlannedStock) ? 0 : (form.getFieldValue('physicalBalance') || 0),
+        condition: (isPlannedStock && !isStockItem) || (!isStockItem && !isPlannedStock) ? 'N' : (form.getFieldValue('condition') || 'A'),
+      });
+
+      // Store the selected item master for UI updates
+      setSelectedItemMaster(itemMaster);
+
+      // If we have a default storage location, fetch its bin locations
       if (defaultLocationId) {
         const location = storageLocations.find(loc => loc.id === defaultLocationId);
         if (location) {
           setSelectedStorageLocation(location);
           fetchBinLocations(defaultLocationId);
         }
+      }      // Show appropriate message based on stock type
+      if (isPlannedStock && isStockItem) {
+        message.success(`Both Planned Stock AND Stock Item "${itemMaster.itemNumber}" selected. You can set physical balance.`);
+      } else if (isPlannedStock && !isStockItem) {
+        message.info(`ST2 Planned Stock item "${itemMaster.itemNumber}" selected. Physical balance set to 0 and condition set to N (managed by planning system).`);
+      } else if (!isStockItem && !isPlannedStock) {
+        message.info(`NS3 Non-Stock item "${itemMaster.itemNumber}" selected. Physical balance set to 0 and condition set to N (used for contracts/direct orders only).`);
+      } else {
+        message.success(`ST1 Stock item "${itemMaster.itemNumber}" selected and data populated. You can set physical balance.`);
       }
-
-      // Remove the success message to prevent spam
-      // message.success('Item details loaded successfully');
     } catch (error) {
       console.error('Error fetching item master details:', error);
       message.error(`Failed to load item details: ${error.message || 'Unknown error'}`);
@@ -410,9 +428,21 @@ export default function InventoryForm({ isUpdateForm = false, current = {}, form
         name="manufacturerPartNumber"
       >
         <Input placeholder={translate('Auto-populated from Item Master')} readOnly />
-      </Form.Item>
-      <Form.Item
-        label={translate('Physical Balance')}
+      </Form.Item>      <Form.Item
+        label={
+          selectedItemMaster?.plannedStock === 'Y' ? (
+            <Tooltip title="Physical balance is managed by planning system for ST2 items">
+              <span>
+                {translate('Physical Balance')} 
+                <span style={{ color: '#1890ff', fontSize: '11px', marginLeft: '5px' }}>
+                  (ST2 - Planned Stock)
+                </span>
+              </span>
+            </Tooltip>
+          ) : (
+            translate('Physical Balance')
+          )
+        }
         name="physicalBalance"
         initialValue={0}
         rules={[
@@ -422,8 +452,23 @@ export default function InventoryForm({ isUpdateForm = false, current = {}, form
             message: translate('Physical balance cannot be negative')
           }
         ]}
-      >
-        <InputNumber min={0} style={{ width: '100%' }} />
+      >        <InputNumber 
+          min={0} 
+          style={{ width: '100%' }} 
+          disabled={
+            (selectedItemMaster?.plannedStock === 'Y' && selectedItemMaster?.stockItem !== 'Y') || 
+            (selectedItemMaster?.stockItem !== 'Y' && selectedItemMaster?.plannedStock !== 'Y')
+          }
+          placeholder={
+            selectedItemMaster?.plannedStock === 'Y' && selectedItemMaster?.stockItem !== 'Y'
+              ? "ST2: Managed by planning system (locked at 0)" 
+              : (selectedItemMaster?.stockItem !== 'Y' && selectedItemMaster?.plannedStock !== 'Y')
+              ? "NS3: Non-stock item (locked at 0)"
+              : selectedItemMaster?.plannedStock === 'Y' && selectedItemMaster?.stockItem === 'Y'
+              ? "Both Planned & Stock: Enter physical balance"
+              : "ST1: Enter physical balance"
+          }
+        />
       </Form.Item>
       <Form.Item
         label={translate('Unit of Measure')}
@@ -479,20 +524,29 @@ export default function InventoryForm({ isUpdateForm = false, current = {}, form
           style={{ width: '100%' }}
           formatter={value => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
         />      </Form.Item>      
-      
-      <Form.Item
+        <Form.Item
         label={translate('Condition')}
         name="condition"
         initialValue="A"
-      >
-        <Select>
-          <Select.Option value="A">{translate('A - Excellent')}</Select.Option>
+      >        <Select 
+          disabled={selectedItemMaster && 
+            ((selectedItemMaster.plannedStock === 'Y' && selectedItemMaster.stockItem !== 'Y') ||
+             (selectedItemMaster.stockItem !== 'Y' && selectedItemMaster.plannedStock !== 'Y'))
+          }
+          placeholder={selectedItemMaster && 
+            ((selectedItemMaster.plannedStock === 'Y' && selectedItemMaster.stockItem !== 'Y') ||
+             (selectedItemMaster.stockItem !== 'Y' && selectedItemMaster.plannedStock !== 'Y'))
+            ? "N - None (ST2/NS3 items)" 
+            : "Select condition"
+          }
+        >          <Select.Option value="A">{translate('A - Excellent')}</Select.Option>
           <Select.Option value="B">{translate('B - Good')}</Select.Option>
           <Select.Option value="C">{translate('C - Fair')}</Select.Option>
           <Select.Option value="D">{translate('D - Poor')}</Select.Option>
           <Select.Option value="E">{translate('E - Critical')}</Select.Option>
+          <Select.Option value="N">{translate('N - None (Planned/Non-stock)')}</Select.Option>
         </Select>
-      </Form.Item>              
+      </Form.Item>
       <Title level={4}>{translate('Stock Level Settings')}</Title>
       <Form.Item
         label={
@@ -535,8 +589,22 @@ export default function InventoryForm({ isUpdateForm = false, current = {}, form
             },
           }),
         ]}
+      >        <InputNumber min={0} style={{ width: '100%' }} />
+      </Form.Item>
+
+      <Form.Item
+        label={translate('Reorder Point')}
+        name="reorderPoint"
+        initialValue={0}
+        rules={[
+          {
+            type: 'number',
+            min: 0,
+            message: translate('Reorder point cannot be negative')
+          }
+        ]}
       >
-        <InputNumber min={0} style={{ width: '100%' }} />
+        <InputNumber min={0} style={{ width: '100%' }} placeholder={translate('Enter reorder point')} />
       </Form.Item>      <Modal
         title={translate("Long Description")}
         open={longDescModalVisible}

@@ -5,12 +5,16 @@ import { Navigate } from 'react-router-dom';
 
 import procurementRoutes from './procurementRoutes';
 import supplierRoutes from './supplierRoutes';
+import supplierPortalRoutes from './supplierPortalRoutes';
 import inventoryRoutes from './inventoryRoutes';
 import warehouseRoutes from './warehouseRoutes';
 import financeRoutes from './financeRoutes';
+import dofaRoutes from './dofaRoutes';
+import salesRoutes from './salesRoutes';
 
 const Logout = lazyWithErrorHandling(() => import('@/pages/Logout.jsx'));
 const NotFound = lazyWithErrorHandling(() => import('@/pages/NotFound.jsx'));
+const SupplierAcceptance = lazyWithErrorHandling(() => import('@/pages/SupplierAcceptance.jsx'));
 
 const Dashboard = lazyWithErrorHandling(() => import('@/pages/Dashboard'));
 const Customer = lazyWithErrorHandling(() => import('@/pages/Customer'));
@@ -47,11 +51,14 @@ const About = lazyWithErrorHandling(() => import('@/pages/About'));
 
 let routes = {
   expense: [],  default: [
+    ...dofaRoutes,
     ...procurementRoutes,
     ...supplierRoutes,
+    ...supplierPortalRoutes,
     ...inventoryRoutes,
     ...warehouseRoutes,
     ...financeRoutes,
+    ...salesRoutes,
     {
       path: '/login',
       element: <Navigate to="/" />,
@@ -63,6 +70,10 @@ let routes = {
     {
       path: '/about',
       element: <About />,
+    },
+    {
+      path: '/supplier-acceptance/:token',
+      element: <SupplierAcceptance />,
     },
     {
       path: '/',

@@ -78,13 +78,31 @@ module.exports = (sequelize) => {
       allowNull: true,
     },
     status: {
-      type: DataTypes.ENUM('active', 'inactive', 'pending_approval', 'rejected'),
+      type: DataTypes.ENUM('active', 'inactive', 'pending_approval', 'pending_supplier_acceptance', 'rejected'),
       defaultValue: 'pending_approval',
     },
     notes: {
       type: DataTypes.TEXT,
       allowNull: true,
-    },    createdById: {
+    },
+    approvedById: {
+      type: DataTypes.UUID,
+      allowNull: true,
+    },
+    approvedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    supplierAcceptedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    acceptanceToken: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      unique: true,
+    },
+    createdById: {
       type: DataTypes.UUID,
       allowNull: false,
     },
@@ -96,6 +114,7 @@ module.exports = (sequelize) => {
   Supplier.associate = function(models) {
     Supplier.belongsTo(models.User, { as: 'createdBy', foreignKey: 'createdById' });
     Supplier.belongsTo(models.User, { as: 'updatedBy', foreignKey: 'updatedById' });
+    Supplier.belongsTo(models.User, { as: 'approvedBy', foreignKey: 'approvedById' });
     Supplier.hasMany(models.Contract, { as: 'contracts', foreignKey: 'supplierId' });
     // TODO: Add these associations when the models are available
     // Supplier.hasMany(models.PurchaseOrder, { as: 'purchaseOrders', foreignKey: 'supplierId' });

@@ -1,7 +1,7 @@
 // Database model for Contract Items
 const { DataTypes } = require('sequelize');
 
-module.exports = (sequelize) => {
+module.exports = (sequelize, DataTypes) => {
   const ContractItem = sequelize.define('ContractItem', {
     id: {
       type: DataTypes.UUID,
@@ -36,10 +36,11 @@ module.exports = (sequelize) => {
     minimumOrderQuantity: {
       type: DataTypes.DECIMAL(15, 2),
       allowNull: true,
-    },
-    notes: {
+    },    notes: {
       type: DataTypes.TEXT,
-    },
+    },  }, {
+    tableName: 'ContractItems',
+    timestamps: true
   });
 
   ContractItem.associate = function(models) {

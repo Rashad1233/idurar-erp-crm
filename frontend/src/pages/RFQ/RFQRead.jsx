@@ -17,7 +17,8 @@ import {
   Tabs,
   Space,
   Typography,
-  Dropdown
+  Dropdown,
+  Tooltip
 } from 'antd';
 import {
   FileTextOutlined,
@@ -69,6 +70,9 @@ function RFQRead() {
   const [recordQuoteForm] = Form.useForm();
   const [recordQuoteModalVisible, setRecordQuoteModalVisible] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState(null);
+  const [activeTab, setActiveTab] = useState('1');
+  const [supplierResponsesLoading, setSupplierResponsesLoading] = useState(false);
+  const [rfqAttachments, setRFQAttachments] = useState([]);
 
   // Define menu items for Dropdown
   const supplierActions = (supplier) => ({
@@ -97,8 +101,10 @@ function RFQRead() {
       
       try {
         const response = await request.read({ entity: 'rfq', id });
-        if (response.success && response.result) {
-          const rfqData = response.result;
+        console.log('🔍 RFQ Read Response:', response);
+        if (response.success) {
+          const rfqData = response.result || response.data;
+          console.log('🔍 RFQ Data:', rfqData);
           
           // Process and set RFQ data
           setRFQ({
@@ -125,11 +131,15 @@ function RFQRead() {
           // Set suppliers with formatting
           setRFQSuppliers(rfqData.suppliers?.map(s => ({
             ...s,
-            id: s._id || s.id,
-            key: s._id || s.id,
-            supplierName: s.supplier?.name,
-            supplierEmail: s.supplier?.email,
-            supplierPhone: s.supplier?.phone
+            id: s.id,
+            key: s.id,
+            name: s.supplierName || s.name,
+            contact: s.contactName || s.contact,
+            email: s.contactEmail || s.email,
+            phone: s.contactPhone || s.phone,
+            supplierName: s.supplierName,
+            supplierEmail: s.contactEmail,
+            supplierPhone: s.contactPhone
           })) || []);
           
           // Load associated supplier responses
@@ -275,17 +285,30 @@ function RFQRead() {
     }
   };
   
+  // Helper to truncate text with ellipsis and tooltip
+  const renderEllipsis = (text, maxLength = 30) => {
+    if (!text) return '';
+    const display = text.length > maxLength ? text.slice(0, maxLength) + '…' : text;
+    return (
+      <Tooltip title={text}>
+        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'inline-block', maxWidth: 200 }}>{display}</span>
+      </Tooltip>
+    );
+  };
+  
   // Item columns for the table
   const itemColumns = [
     {
       title: translate('Item'),
       dataIndex: 'name',
       key: 'name',
+      render: (text) => renderEllipsis(text, 30),
     },
     {
       title: translate('Description'),
       dataIndex: 'description',
       key: 'description',
+      render: (text) => renderEllipsis(text, 50),
     },
     {
       title: translate('Quantity'),
@@ -305,6 +328,7 @@ function RFQRead() {
       title: translate('Supplier Name'),
       dataIndex: 'name',
       key: 'name',
+      render: (text, record) => record.supplierName || record.name || '-',
     },
     {
       title: translate('Contact'),
@@ -540,17 +564,27 @@ function RFQRead() {
           </Descriptions.Item>
           
           <Descriptions.Item label={translate('Date')}>
-            {rfq.date ? moment(rfq.date).format('YYYY-MM-DD') : '-'}
+            {rfq.dueDate ? moment(rfq.dueDate).format('YYYY-MM-DD') : (rfq.createdAt ? moment(rfq.createdAt).format('YYYY-MM-DD') : '-')}
           </Descriptions.Item>
           <Descriptions.Item label={translate('Expiration Date')}>
-            {rfq.expirationDate ? moment(rfq.expirationDate).format('YYYY-MM-DD') : '-'}
+            {rfq.responseDeadline ? moment(rfq.responseDeadline).format('YYYY-MM-DD') : (rfq.dueDate ? moment(rfq.dueDate).format('YYYY-MM-DD') : '-')}
           </Descriptions.Item>
           
           <Descriptions.Item label={translate('Requested By')}>
-            {rfq.requestedBy || '-'}
+            {rfq.createdBy?.name || rfq.createdBy?.email || '-'}
           </Descriptions.Item>
           <Descriptions.Item label={translate('Department')}>
-            {rfq.department || '-'}
+            {rfq.purchaseRequisition?.costCenter || '-'}
+          </Descriptions.Item>
+
+          <Descriptions.Item label={translate('Related PR')}>
+            {rfq.purchaseRequisition ? (
+              <a href={`/purchase-requisition/read/${rfq.purchaseRequisition.id}`}>
+                {rfq.purchaseRequisition.prNumber}
+              </a>
+            ) : (
+              '-'
+            )}
           </Descriptions.Item>
           
           <Descriptions.Item label={translate('Notes')} span={2}>
@@ -569,7 +603,7 @@ function RFQRead() {
       
       <Modal
         title={translate('Record Supplier Quote')}
-        visible={recordQuoteModalVisible}
+        open={recordQuoteModalVisible}
         onCancel={() => setRecordQuoteModalVisible(false)}
         footer={null}
         width={800}

@@ -1,2 +1,5 @@
-export { default as request } from './request';
-export { default as checkImage } from './checkImage';
+import request from './request';
+import checkImage from './checkImage';
+
+export { request, checkImage };
+export default request;

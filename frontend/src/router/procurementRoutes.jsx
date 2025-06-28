@@ -12,6 +12,7 @@ const RFQRead = lazyWithErrorHandling(() => import('@/pages/RFQ/RFQRead'));
 const RFQUpdate = lazyWithErrorHandling(() => import('@/pages/RFQ/RFQUpdate'));
 const RFQSend = lazyWithErrorHandling(() => import('@/pages/RFQ/RFQSend'));
 const RFQQuoteComparison = lazyWithErrorHandling(() => import('@/pages/RFQ/RFQQuoteComparison'));
+const RFQSupplierApproval = lazyWithErrorHandling(() => import('@/pages/RFQ/RFQSupplierApproval'));
 
 const PurchaseOrder = lazyWithErrorHandling(() => import('@/pages/PurchaseOrder'));
 const PurchaseOrderCreate = lazyWithErrorHandling(() => import('@/pages/PurchaseOrder/PurchaseOrderCreate'));
@@ -70,6 +71,10 @@ const procurementRoutes = [
   {
     path: '/rfq/comparison/:id',
     element: <RFQQuoteComparison />,
+  },
+  {
+    path: '/rfq/supplier-approval/:id/:supplierId?',
+    element: <RFQSupplierApproval />,
   },
   // Purchase Order routes
   {

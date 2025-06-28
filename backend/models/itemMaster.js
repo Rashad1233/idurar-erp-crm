@@ -28,6 +28,14 @@ module.exports = (sequelize) => {
           as: 'createdBy'
         });
       }
+      
+      // Add association with SalesOrderItem
+      if (models.SalesOrderItem) {
+        this.hasMany(models.SalesOrderItem, {
+          foreignKey: 'itemMasterId',
+          as: 'salesOrderItems'
+        });
+      }
     }
   }
   ItemMaster.init({

@@ -47,13 +47,61 @@
         "tokens": 2464,
         "cost": 0.004066
       }
+    },
+    "2025-06-23": {
+      "complete-item-generation": {
+        "count": 3,
+        "tokens": 3531,
+        "cost": 0.005827
+      },
+      "pr-comments-generation": {
+        "count": 9,
+        "tokens": 2798,
+        "cost": 0.004619000000000001
+      },
+      "pr-justification-generation": {
+        "count": 11,
+        "tokens": 4398,
+        "cost": 0.007259
+      }
+    },
+    "2025-06-24": {
+      "pr-justification-generation": {
+        "count": 14,
+        "tokens": 2907,
+        "cost": 0.0048000000000000004
+      },
+      "pr-comments-generation": {
+        "count": 7,
+        "tokens": 1856,
+        "cost": 0.0030635000000000003
+      },
+      "complete-item-generation": {
+        "count": 1,
+        "tokens": 1211,
+        "cost": 0.0019985
+      }
+    },
+    "2025-06-26": {
+      "complete-item-generation": {
+        "count": 1,
+        "tokens": 1176,
+        "cost": 0.0019405
+      }
+    },
+    "2025-06-27": {
+      "155": {
+        "count": 3,
+        "tokens": 1430,
+        "cost": null
+      }
     }
   },
   "monthly": {
     "2025-06": {
       "155": {
-        "count": 9,
-        "tokens": 4045,
+        "count": 12,
+        "tokens": 5475,
         "cost": null
       },
       "163": {
@@ -67,14 +115,19 @@
         "cost": 0.01191455
       },
       "pr-comments-generation": {
-        "count": 5,
-        "tokens": 1430,
-        "cost": 0.0023604999999999998
+        "count": 21,
+        "tokens": 6084,
+        "cost": 0.010043
       },
       "complete-item-generation": {
-        "count": 45,
-        "tokens": 52949,
-        "cost": 0.08737500000000002
+        "count": 50,
+        "tokens": 58867,
+        "cost": 0.09714100000000002
+      },
+      "pr-justification-generation": {
+        "count": 25,
+        "tokens": 7305,
+        "cost": 0.012059000000000002
       }
     }
   },
@@ -118,6 +171,47 @@
             "tokens": 2464,
             "cost": 0.004066
           }
+        },
+        "2025-06-23": {
+          "complete-item-generation": {
+            "count": 3,
+            "tokens": 3531,
+            "cost": 0.005827
+          },
+          "pr-comments-generation": {
+            "count": 9,
+            "tokens": 2798,
+            "cost": 0.004619000000000001
+          },
+          "pr-justification-generation": {
+            "count": 11,
+            "tokens": 4398,
+            "cost": 0.007259
+          }
+        },
+        "2025-06-24": {
+          "pr-justification-generation": {
+            "count": 14,
+            "tokens": 2907,
+            "cost": 0.0048000000000000004
+          },
+          "pr-comments-generation": {
+            "count": 7,
+            "tokens": 1856,
+            "cost": 0.0030635000000000003
+          },
+          "complete-item-generation": {
+            "count": 1,
+            "tokens": 1211,
+            "cost": 0.0019985
+          }
+        },
+        "2025-06-26": {
+          "complete-item-generation": {
+            "count": 1,
+            "tokens": 1176,
+            "cost": 0.0019405
+          }
         }
       },
       "monthly": {
@@ -128,14 +222,19 @@
             "cost": 0.01191455
           },
           "pr-comments-generation": {
-            "count": 5,
-            "tokens": 1430,
-            "cost": 0.0023604999999999998
+            "count": 21,
+            "tokens": 6084,
+            "cost": 0.010043
           },
           "complete-item-generation": {
-            "count": 45,
-            "tokens": 52949,
-            "cost": 0.08737500000000002
+            "count": 50,
+            "tokens": 58867,
+            "cost": 0.09714100000000002
+          },
+          "pr-justification-generation": {
+            "count": 25,
+            "tokens": 7305,
+            "cost": 0.012059000000000002
           }
         }
       }
@@ -153,13 +252,20 @@
             "tokens": 755,
             "cost": null
           }
+        },
+        "2025-06-27": {
+          "155": {
+            "count": 3,
+            "tokens": 1430,
+            "cost": null
+          }
         }
       },
       "monthly": {
         "2025-06": {
           "155": {
-            "count": 9,
-            "tokens": 4045,
+            "count": 12,
+            "tokens": 5475,
             "cost": null
           },
           "163": {

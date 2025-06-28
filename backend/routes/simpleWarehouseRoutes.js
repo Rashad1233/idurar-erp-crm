@@ -498,4 +498,227 @@ router.get('/bin-locations', wrapAsync(async (req, res) => {
   }
 }));
 
+// Alias route for single storage location detail
+router.get('/storage-locations/:id', wrapAsync(async (req, res) => {
+  try {
+    console.log(`🔍 Storage location detail alias route called for ID: ${req.params.id}`);
+    const { sequelize } = require('../models/sequelize');
+    const { id } = req.params;
+    
+    // Get storage location with direct SQL
+    const [locations] = await sequelize.query(`
+      SELECT 
+        sl.*,
+        u.name as "createdByName"
+      FROM 
+        "StorageLocations" sl
+      LEFT JOIN 
+        "Users" u ON sl."createdById" = u.id
+      WHERE 
+        sl.id = :id
+    `, {
+      replacements: { id }
+    });
+    
+    if (locations.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Storage location not found'
+      });
+    }
+    
+    console.log('✅ Retrieved storage location detail via alias route');
+    
+    return res.status(200).json({
+      success: true,
+      data: locations[0]
+    });
+  } catch (error) {
+    console.error('❌ Error in storage location detail alias route:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error fetching storage location detail',
+      error: error.message
+    });
+  }
+}));
+
+// Alias route for single bin location detail
+router.get('/bin-locations/:id', wrapAsync(async (req, res) => {
+  try {
+    console.log(`🔍 Bin location detail alias route called for ID: ${req.params.id}`);
+    const { sequelize } = require('../models/sequelize');
+    const { id } = req.params;
+    
+    // Get bin location with storage location details
+    const [binLocations] = await sequelize.query(`
+      SELECT 
+        bl.*,
+        sl.code as "storageLocationCode",
+        sl.description as "storageLocationDescription",
+        u.name as "createdByName"
+      FROM 
+        "BinLocations" bl
+      LEFT JOIN 
+        "StorageLocations" sl ON bl."storageLocationId" = sl.id
+      LEFT JOIN 
+        "Users" u ON bl."createdById" = u.id
+      WHERE 
+        bl.id = :id
+    `, {
+      replacements: { id }
+    });
+    
+    if (binLocations.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Bin location not found'
+      });
+    }
+    
+    console.log('✅ Retrieved bin location detail via alias route');
+    
+    return res.status(200).json({
+      success: true,
+      data: binLocations[0]
+    });
+  } catch (error) {
+    console.error('❌ Error in bin location detail alias route:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error fetching bin location detail',
+      error: error.message
+    });
+  }
+}));
+
+// Update storage location endpoint
+router.put('/storage-locations/:id', wrapAsync(async (req, res) => {
+  try {
+    console.log(`🔍 Storage location update route called for ID: ${req.params.id}`);
+    const { sequelize } = require('../models/sequelize');
+    const { id } = req.params;
+    const { code, description, street, city, postalCode, country, isActive } = req.body;
+    
+    // Update storage location with direct SQL
+    const [updatedRows] = await sequelize.query(`
+      UPDATE "StorageLocations" 
+      SET 
+        code = :code,
+        description = :description,
+        street = :street,
+        city = :city,
+        "postalCode" = :postalCode,
+        country = :country,
+        "isActive" = :isActive,
+        "updatedAt" = NOW()
+      WHERE id = :id
+    `, {
+      replacements: { id, code, description, street, city, postalCode, country, isActive }
+    });
+    
+    if (updatedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Storage location not found'
+      });
+    }
+    
+    // Get the updated record
+    const [locations] = await sequelize.query(`
+      SELECT 
+        sl.*,
+        u.name as "createdByName"
+      FROM 
+        "StorageLocations" sl
+      LEFT JOIN 
+        "Users" u ON sl."createdById" = u.id
+      WHERE 
+        sl.id = :id
+    `, {
+      replacements: { id }
+    });
+    
+    console.log('✅ Storage location updated successfully');
+    
+    return res.status(200).json({
+      success: true,
+      data: locations[0],
+      message: 'Storage location updated successfully'
+    });
+  } catch (error) {
+    console.error('❌ Error updating storage location:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error updating storage location',
+      error: error.message
+    });
+  }
+}));
+
+// Update bin location endpoint
+router.put('/bin-locations/:id', wrapAsync(async (req, res) => {
+  try {
+    console.log(`🔍 Bin location update route called for ID: ${req.params.id}`);
+    const { sequelize } = require('../models/sequelize');
+    const { id } = req.params;
+    const { binCode, description, storageLocationId, isActive } = req.body;
+    
+    // Update bin location with direct SQL
+    const [updatedRows] = await sequelize.query(`
+      UPDATE "BinLocations" 
+      SET 
+        "binCode" = :binCode,
+        description = :description,
+        "storageLocationId" = :storageLocationId,
+        "isActive" = :isActive,
+        "updatedAt" = NOW()
+      WHERE id = :id
+    `, {
+      replacements: { id, binCode, description, storageLocationId, isActive }
+    });
+    
+    if (updatedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Bin location not found'
+      });
+    }
+    
+    // Get the updated record with storage location details
+    const [binLocations] = await sequelize.query(`
+      SELECT 
+        bl.*,
+        sl.code as "storageLocationCode",
+        sl.description as "storageLocationDescription",
+        u.name as "createdByName"
+      FROM 
+        "BinLocations" bl
+      LEFT JOIN 
+        "StorageLocations" sl ON bl."storageLocationId" = sl.id
+      LEFT JOIN 
+        "Users" u ON bl."createdById" = u.id
+      WHERE 
+        bl.id = :id
+    `, {
+      replacements: { id }
+    });
+    
+    console.log('✅ Bin location updated successfully');
+    
+    return res.status(200).json({
+      success: true,
+      data: binLocations[0],
+      message: 'Bin location updated successfully'
+    });
+  } catch (error) {
+    console.error('❌ Error updating bin location:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error updating bin location',
+      error: error.message
+    });
+  }
+}));
+
 module.exports = router;

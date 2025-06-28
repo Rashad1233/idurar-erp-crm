@@ -39,6 +39,20 @@ function SaveForm({ form }) {
   );
 }
 
+function SubmitForm({ form }) {
+  const translate = useLanguage();
+  const handelClick = () => {
+    form.setFieldValue('status', 'submitted');
+    form.submit();
+  };
+
+  return (
+    <Button onClick={handelClick} type="primary" style={{ marginLeft: 8 }}>
+      {translate('Submit For Approval')}
+    </Button>
+  );
+}
+
 export default function CreateItem({ config, CreateForm }) {
   const translate = useLanguage();
   const dispatch = useDispatch();
@@ -144,16 +158,16 @@ export default function CreateItem({ config, CreateForm }) {
         if (processedData.items) {
           let newList = [...processedData.items];
           newList = newList.map((item) => {
-            // Ensure numeric values
+            // Ensure numeric values and prevent NaN
             const quantity = Number(item.quantity) || 0;
             const price = Number(item.price) || 0;
-            const total = calculate.multiply(quantity, price);
+            const total = quantity && price ? calculate.multiply(quantity, price) : 0;
             
             return {
               ...item,
-              quantity,
-              price,
-              total
+              quantity: quantity,
+              price: price,
+              totalPrice: total // Match the database column name
             };
           });
           
@@ -163,6 +177,23 @@ export default function CreateItem({ config, CreateForm }) {
         // Convert taxRate to number
         if (processedData.taxRate !== undefined) {
           processedData.taxRate = Number(processedData.taxRate) || 0;
+        }
+        
+        // Handle specific field mappings for different entities
+        if (entity === 'purchase-order') {
+          // Map frontend form fields to backend API expectations
+          if (processedData.supplier) {
+            processedData.supplierId = processedData.supplier;
+            delete processedData.supplier;
+          }
+          if (processedData.rfq) {
+            processedData.requestForQuotationId = processedData.rfq;
+            delete processedData.rfq;
+          }
+          if (processedData.purchaseRequisition) {
+            processedData.purchaseRequisitionId = processedData.purchaseRequisition;
+            delete processedData.purchaseRequisition;
+          }
         }
         
         // Ensure all entity references are proper UUIDs
@@ -267,9 +298,10 @@ export default function CreateItem({ config, CreateForm }) {
             message.error('Please check form for errors');
           }}
         >
-          <CreateForm subTotal={subTotal} offerTotal={offerSubTotal} />
+          <CreateForm form={form} subTotal={subTotal} offerTotal={offerSubTotal} />
         </Form>
       </Loading>
+
     </>
   );
 }

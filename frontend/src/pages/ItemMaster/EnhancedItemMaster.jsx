@@ -431,9 +431,8 @@ export default function EnhancedItemMaster() {
       });
       return;
     }
-    
-    // Navigate to inventory creation
-    navigate(`/inventory/create`, {
+      // Navigate to inventory creation
+    navigate(`/inventory/create-item`, {
       state: { 
         itemMaster: record,
         mode: 'from-item-master'
@@ -768,7 +767,7 @@ export default function EnhancedItemMaster() {
         return (
           <Space size="small">
             {getWorkflowActions()}            <Dropdown
-              overlay={
+              dropdownRender={() => (
                 <Menu onClick={({ key }) => handleMenuAction(key, record)}>
                   <Menu.Item key="duplicate">
                     <ToolOutlined /> Duplicate Item
@@ -832,7 +831,7 @@ export default function EnhancedItemMaster() {
                     </Menu.Item>
                   )}
                 </Menu>
-              }
+              )}
               trigger={['click']}
             >
               <Button type="text" icon={<MoreOutlined />} size="small" />

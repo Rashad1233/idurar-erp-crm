@@ -84,5 +84,14 @@ module.exports = (sequelize, DataTypes) => {
     return await bcrypt.compare(candidatePassword, this.password);
   };
 
+  User.associate = (models) => {
+    if (models.Notification) {
+      User.hasMany(models.Notification, {
+        foreignKey: 'actionById',
+        as: 'notifications'
+      });
+    }
+  };
+
   return User;
 };

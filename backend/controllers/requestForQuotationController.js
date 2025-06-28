@@ -34,6 +34,101 @@ const models = {
 };
 const { Op } = require('sequelize');
 const { generateTimeBasedId } = require('../utils/idGenerator');
+const nodemailer = require('nodemailer');
+const crypto = require('crypto');
+
+// Email configuration - TEMPORARY: using fallback credentials for testing
+const config = {
+  email: {
+    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+    port: process.env.EMAIL_PORT || 587,
+    secure: process.env.EMAIL_SECURE === 'true',
+    user: process.env.EMAIL_USER || 'rashadyus10@gmail.com',
+    password: process.env.EMAIL_PASSWORD || 'hldk uywx bxvl sxqu',
+    from: process.env.EMAIL_FROM || 'ERP System <rashadyus10@gmail.com>'
+  },
+  baseUrl: process.env.BASE_URL || 'http://localhost:3000'
+};
+
+// Create email transporter
+const transporter = nodemailer.createTransport({
+  host: config.email.host,
+  port: config.email.port,
+  secure: config.email.secure,
+  auth: {
+    user: config.email.user,
+    pass: config.email.password
+  }
+});
+
+// Send RFQ email notification to supplier
+const sendRFQEmailNotification = async (rfq, rfqSupplier, requestData) => {
+  try {
+    // Check if email configuration is available
+    if (!config.email.user || !config.email.password) {
+      throw new Error('Email configuration missing. Please set EMAIL_USER and EMAIL_PASSWORD in .env file');
+    }
+
+    // Generate response token if not exists
+    if (!rfqSupplier.responseToken) {
+      const responseToken = crypto.randomBytes(32).toString('hex');
+      await rfqSupplier.update({ 
+        responseToken: responseToken,
+        tokenExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+      });
+      rfqSupplier.responseToken = responseToken;
+    }
+
+    const supplierPortalUrl = `${config.baseUrl}/rfq/supplier-approval/${rfq.id}/${rfqSupplier.supplierId}`;
+    
+    // Determine recipient email
+    const recipientEmail = rfqSupplier.contactEmail;
+    if (!recipientEmail) {
+      throw new Error(`No email address found for supplier: ${rfqSupplier.supplierName}`);
+    }
+
+    const mailOptions = {
+      from: config.email.from,
+      to: recipientEmail,
+      cc: rfqSupplier.contactEmailSecondary,
+      subject: requestData.emailSubject || `Request for Quotation: ${rfq.rfqNumber}`,
+      html: `
+        <h2>Request for Quotation</h2>
+        <p>Dear ${rfqSupplier.supplierName},</p>
+        <p>You have received a new Request for Quotation (${rfq.rfqNumber}).</p>
+        <p><strong>Description:</strong> ${rfq.description}</p>
+        <p><strong>Submission Deadline:</strong> ${new Date(rfq.responseDeadline).toLocaleDateString()}</p>
+        
+        ${requestData.message ? `<div style="background-color: #f5f5f5; padding: 15px; border-left: 4px solid #007bff; margin: 15px 0;">
+          <p><strong>Message from Procurement Team:</strong></p>
+          <p>${requestData.message.replace(/\n/g, '<br>')}</p>
+        </div>` : ''}
+        
+        <p>Please click the link below to view the RFQ details and submit your response:</p>
+        <p><a href="${supplierPortalUrl}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Access RFQ Portal</a></p>
+        <p>If you have any questions, please contact our procurement team.</p>
+        <br>
+        <p>Best regards,<br>Procurement Team</p>
+        <hr>
+        <p style="font-size: 12px; color: #666;">
+          RFQ Number: ${rfq.rfqNumber}<br>
+          Response Required By: ${new Date(rfq.responseDeadline).toLocaleDateString()}<br>
+          Link: <a href="${supplierPortalUrl}">${supplierPortalUrl}</a>
+        </p>
+      `
+    };
+
+    console.log(`Attempting to send RFQ email to: ${recipientEmail}`);
+    const result = await transporter.sendMail(mailOptions);
+    console.log(`✅ RFQ email sent successfully to ${recipientEmail}. Message ID: ${result.messageId}`);
+    
+    return result;
+    
+  } catch (error) {
+    console.error(`❌ Error sending RFQ email:`, error);
+    throw error;
+  }
+};
 
 // Generate an RFQ number (format: RFQ-YYYYMMDD-XXXX)
 const generateRFQNumber = async () => {
@@ -186,11 +281,11 @@ exports.createRFQ = async (req, res) => {
         if (!supplier.contactName && existingSupplier.contactPerson) {
           supplier.contactName = existingSupplier.contactPerson;
         }
-        if (!supplier.contactEmail && existingSupplier.email) {
-          supplier.contactEmail = existingSupplier.email;
+        if (!supplier.contactEmail && existingSupplier.contactEmail) {
+          supplier.contactEmail = existingSupplier.contactEmail;
         }
-        if (!supplier.contactPhone && existingSupplier.phone) {
-          supplier.contactPhone = existingSupplier.phone;
+        if (!supplier.contactPhone && existingSupplier.contactPhone) {
+          supplier.contactPhone = existingSupplier.contactPhone;
         }
       }
       
@@ -199,7 +294,7 @@ exports.createRFQ = async (req, res) => {
         throw new Error('Supplier name is required');
       }
       
-      const rfqSupplier = await Rfqmodels.Supplier.create({
+      const rfqSupplier = await RfqSupplier.create({
         requestForQuotationId: rfq.id,
         supplierId: supplier.supplierId || null,
         supplierName: supplier.supplierName,
@@ -387,7 +482,7 @@ exports.getRFQ = async (req, res) => {
             {
               model: Supplier,
               as: 'supplier',
-              attributes: ['id', 'supplierNumber', 'legalName', 'tradeName', 'email', 'phone']
+              attributes: ['id', 'supplierNumber', 'legalName', 'tradeName', 'contactEmail', 'contactPhone']
             },
             {
               model: RfqQuoteItem,
@@ -533,7 +628,7 @@ exports.updateRFQ = async (req, res) => {
     // Update suppliers if provided
     if (suppliers && suppliers.length > 0) {
       // Delete existing suppliers
-      await Rfqmodels.Supplier.destroy({
+      await RfqSupplier.destroy({
         where: { requestForQuotationId: rfq.id },
         transaction
       });
@@ -554,11 +649,11 @@ exports.updateRFQ = async (req, res) => {
           if (!supplier.contactName && existingSupplier.contactPerson) {
             supplier.contactName = existingSupplier.contactPerson;
           }
-          if (!supplier.contactEmail && existingSupplier.email) {
-            supplier.contactEmail = existingSupplier.email;
+          if (!supplier.contactEmail && existingSupplier.contactEmail) {
+            supplier.contactEmail = existingSupplier.contactEmail;
           }
-          if (!supplier.contactPhone && existingSupplier.phone) {
-            supplier.contactPhone = existingSupplier.phone;
+          if (!supplier.contactPhone && existingSupplier.contactPhone) {
+            supplier.contactPhone = existingSupplier.contactPhone;
           }
         }
         
@@ -567,7 +662,7 @@ exports.updateRFQ = async (req, res) => {
           throw new Error('Supplier name is required');
         }
         
-        await Rfqmodels.Supplier.create({
+        await RfqSupplier.create({
           requestForQuotationId: rfq.id,
           supplierId: supplier.supplierId || null,
           supplierName: supplier.supplierName,
@@ -674,22 +769,34 @@ exports.sendRFQ = async (req, res) => {
     
     await rfq.save({ transaction });
     
-    // Update all suppliers status to 'sent'
+    // Update all suppliers status to 'sent' and send emails
+    const emailResults = [];
     for (const supplier of rfq.suppliers) {
       supplier.status = 'sent';
       supplier.sentAt = new Date();
       await supplier.save({ transaction });
       
-      // TODO: Implement email notification to suppliers here
-      // This would involve using a notification service or email service
+      // Send email notification to suppliers
+      try {
+        await sendRFQEmailNotification(rfq, supplier, req.body);
+        emailResults.push({ supplierId: supplier.id, status: 'sent', email: supplier.contactEmail });
+        console.log(`✅ Email sent to supplier: ${supplier.supplierName}`);
+      } catch (emailError) {
+        console.error(`❌ Failed to send email to supplier ${supplier.supplierName}:`, emailError.message);
+        emailResults.push({ supplierId: supplier.id, status: 'failed', email: supplier.contactEmail, error: emailError.message });
+      }
     }
     
     await transaction.commit();
     
+    const successfulEmails = emailResults.filter(r => r.status === 'sent').length;
+    const failedEmails = emailResults.filter(r => r.status === 'failed').length;
+    
     res.status(200).json({
       success: true,
-      message: 'Request for Quotation sent to suppliers successfully',
-      data: rfq
+      message: `Request for Quotation sent to suppliers successfully. Emails sent: ${successfulEmails}, Failed: ${failedEmails}`,
+      data: rfq,
+      emailResults: emailResults
     });
   } catch (error) {
     await transaction.rollback();
@@ -741,7 +848,7 @@ exports.recordSupplierQuote = async (req, res) => {
     }
     
     // Verify supplier belongs to this RFQ
-    const rfqSupplier = await Rfqmodels.Supplier.findOne({
+    const rfqSupplier = await RfqSupplier.findOne({
       where: {
         id: rfqSupplierId,
         requestForQuotationId: rfq.id
@@ -1228,11 +1335,11 @@ exports.createRFQFromPR = async (req, res) => {
         if (!supplier.contactName && existingSupplier.contactPerson) {
           supplier.contactName = existingSupplier.contactPerson;
         }
-        if (!supplier.contactEmail && existingSupplier.email) {
-          supplier.contactEmail = existingSupplier.email;
+        if (!supplier.contactEmail && existingSupplier.contactEmail) {
+          supplier.contactEmail = existingSupplier.contactEmail;
         }
-        if (!supplier.contactPhone && existingSupplier.phone) {
-          supplier.contactPhone = existingSupplier.phone;
+        if (!supplier.contactPhone && existingSupplier.contactPhone) {
+          supplier.contactPhone = existingSupplier.contactPhone;
         }
       }
       
@@ -1241,7 +1348,7 @@ exports.createRFQFromPR = async (req, res) => {
         throw new Error('Supplier name is required');
       }
       
-      const rfqSupplier = await Rfqmodels.Supplier.create({
+      const rfqSupplier = await RfqSupplier.create({
         requestForQuotationId: rfq.id,
         supplierId: supplier.supplierId || null,
         supplierName: supplier.supplierName,
